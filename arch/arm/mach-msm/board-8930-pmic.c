@@ -19,6 +19,9 @@
 #include <mach/msm_bus_board.h>
 #include <mach/restart.h>
 #include <mach/socinfo.h>
+
+#include <linux/mfd/pm8xxx/vibrator.h>
+
 #include "devices.h"
 #include "board-8930.h"
 
@@ -307,6 +310,14 @@ static struct pm8xxx_pwrkey_platform_data pm8xxx_pwrkey_pdata = {
 	.wakeup			= 1,
 };
 
+
+static struct pm8xxx_vibrator_platform_data pm8xxx_vib_pdata = {
+	.initial_vibrate_ms  = 500,
+	.level_mV = 3000,
+	//.max_timeout_ms = 15000,
+	.max_timeout_ms =300000,
+};
+
 static int pm8921_therm_mitigation[] = {
 	1100,
 	700,
@@ -314,6 +325,7 @@ static int pm8921_therm_mitigation[] = {
 	325,
 };
 
+#ifdef ORG_VER //S:LO
 #define MAX_VOLTAGE_MV		4200
 #define CHG_TERM_MA		100
 static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
@@ -339,6 +351,38 @@ static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
 	.led_src_config		= LED_SRC_VPH_PWR,
 	.rconn_mohm		= 18,
 };
+#else
+#define MAX_VOLTAGE_MV		4200
+#define CHG_TERM_MA		50
+static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
+	.safety_time_ac		= 240,
+	.safety_time_usb        = 512,
+	.update_time		= 60000,
+	.max_voltage		= MAX_VOLTAGE_MV,
+	.min_voltage		= 3200,
+	.uvd_thresh_voltage	= 4050,
+	.alarm_low_mv		= 3200,
+	.alarm_high_mv		= 4300,
+	.resume_voltage_delta	= 50,
+	.resume_charge_percent	= 99,
+	.term_current		= CHG_TERM_MA,
+	.cool_temp		= 1,
+	.warm_temp		= 45,
+	.temp_check_period	= 1,
+	.max_bat_chg_current	= 1500,
+	.cool_bat_chg_current	= 400,
+	.warm_bat_chg_current	= 400,
+	.cool_bat_voltage	= 4000,
+	.warm_bat_voltage	= 4000,
+	.cold_thr               = 0, // cold = 1 80%   clod = 0 70%
+	.hot_thr                = 1, // hot  = 0 25%   hot  = 1 35%
+	.thermal_mitigation	= pm8921_therm_mitigation,
+	.thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),
+	.led_src_config		= LED_SRC_VPH_PWR,
+	.rconn_mohm		= 10,
+	.chg_time_out_extra     = 329280000, // 329280000 = 5488mins x 60 x 1000
+};
+#endif//E:LO
 
 static struct pm8xxx_vibrator_platform_data pm8038_vib_pdata = {
 	.initial_vibrate_ms = 500,
@@ -346,7 +390,8 @@ static struct pm8xxx_vibrator_platform_data pm8038_vib_pdata = {
 	.max_timeout_ms = 15000,
 };
 
-#define PM8038_WLED_MAX_CURRENT		25
+//#define PM8038_WLED_MAX_CURRENT		25
+#define PM8038_WLED_MAX_CURRENT		20 //Taylor--20120821
 #define PM8XXX_LED_PWM_PERIOD		1000
 #define PM8XXX_LED_PWM_DUTY_MS		20
 #define PM8038_RGB_LED_MAX_CURRENT	12
@@ -358,7 +403,7 @@ static struct led_info pm8038_led_info[] = {
 	},
 	[1] = {
 		.name			= "led:rgb_red",
-		.default_trigger	= "battery-charging",
+		//.default_trigger	= "battery-charging",
 	},
 	[2] = {
 		.name			= "led:rgb_green",
@@ -383,6 +428,8 @@ static struct wled_config_data wled_cfg = {
 	.num_strings = 1,
 };
 
+
+#ifdef ORG_VER
 static int pm8038_led0_pwm_duty_pcts[56] = {
 		1, 4, 8, 12, 16, 20, 24, 28, 32, 36,
 		40, 44, 46, 52, 56, 60, 64, 68, 72, 76,
@@ -403,6 +450,10 @@ static struct pm8xxx_pwm_duty_cycles pm8038_led0_pwm_duty_cycles = {
 	.duty_ms = PM8XXX_LED_PWM_DUTY_MS,
 	.start_idx = 1,
 };
+#else
+#endif
+
+
 
 static struct pm8xxx_led_config pm8038_led_configs[] = {
 	[0] = {
@@ -418,7 +469,7 @@ static struct pm8xxx_led_config pm8038_led_configs[] = {
 		.max_current = PM8038_RGB_LED_MAX_CURRENT,
 		.pwm_channel = 5,
 		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
-		.pwm_duty_cycles = &pm8038_led0_pwm_duty_cycles,
+		//.pwm_duty_cycles = &pm8038_led0_pwm_duty_cycles,
 	},
 	[2] = {
 		.id = PM8XXX_ID_RGB_LED_GREEN,
@@ -426,7 +477,7 @@ static struct pm8xxx_led_config pm8038_led_configs[] = {
 		.max_current = PM8038_RGB_LED_MAX_CURRENT,
 		.pwm_channel = 4,
 		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
-		.pwm_duty_cycles = &pm8038_led0_pwm_duty_cycles,
+		//.pwm_duty_cycles = &pm8038_led0_pwm_duty_cycles,
 	},
 	[3] = {
 		.id = PM8XXX_ID_RGB_LED_BLUE,
@@ -434,7 +485,7 @@ static struct pm8xxx_led_config pm8038_led_configs[] = {
 		.max_current = PM8038_RGB_LED_MAX_CURRENT,
 		.pwm_channel = 3,
 		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
-		.pwm_duty_cycles = &pm8038_led0_pwm_duty_cycles,
+		//.pwm_duty_cycles = &pm8038_led0_pwm_duty_cycles,
 	},
 };
 
@@ -461,7 +512,7 @@ static struct pm8xxx_misc_platform_data pm8xxx_misc_pdata = {
 
 static struct pm8xxx_spk_platform_data pm8xxx_spk_pdata = {
 	.spk_add_enable		= false,
-	.cd_ng_threshold	= 0x0,
+	.cd_ng_threshold	= 0x0,  // BAM_S C 130530 [Mig:I2f3e3935]
 	.cd_nf_preamp_bias	= 0x1,
 	.cd_ng_hold		= 0x6,
 	.cd_ng_max_atten	= 0x0,
@@ -471,6 +522,7 @@ static struct pm8xxx_spk_platform_data pm8xxx_spk_pdata = {
 	.cd_delay		= 0x0,
 };
 
+#ifdef ORG_VER//S:LO
 static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
 	.battery_type			= BATT_UNKNOWN,
 	.r_sense_uohm			= 10000,
@@ -492,6 +544,25 @@ static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
 	.min_fcc_ocv_pc			= 30,
 	.min_fcc_learning_samples	= 5,
 };
+#else
+static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
+	.battery_type			= BATT_PALLADIUM,
+	.r_sense_uohm			= 10000,
+	.v_cutoff			= 3000,
+	.max_voltage_uv			= MAX_VOLTAGE_MV * 1000,
+	.shutdown_soc_valid_limit	= 20,
+	.adjust_soc_low_threshold	= 25,
+	.chg_term_ua			= CHG_TERM_MA * 1000,
+	.rconn_mohm			= 10,
+	.normal_voltage_calc_ms		= 20000,
+	.low_voltage_calc_ms		= 1000,
+	.alarm_low_mv			= 3200,
+	.alarm_high_mv			= 4300,
+	.high_ocv_correction_limit_uv	= 50,
+	.low_ocv_correction_limit_uv	= 100,
+	.hold_soc_est			= 1,
+};
+#endif//E:LO
 
 static struct pm8038_platform_data pm8038_platform_data __devinitdata = {
 	.irq_pdata		= &pm8xxx_irq_pdata,
@@ -499,6 +570,9 @@ static struct pm8038_platform_data pm8038_platform_data __devinitdata = {
 	.mpp_pdata		= &pm8xxx_mpp_pdata,
 	.rtc_pdata              = &pm8xxx_rtc_pdata,
 	.pwrkey_pdata		= &pm8xxx_pwrkey_pdata,
+
+	.vib_pdata              = &pm8xxx_vib_pdata,
+
 	.misc_pdata		= &pm8xxx_misc_pdata,
 	.regulator_pdatas	= msm8930_pm8038_regulator_pdata,
 	.charger_pdata		= &pm8921_chg_pdata,
