@@ -5972,7 +5972,7 @@ static struct clk_lookup msm_clocks_8960[ARRAY_SIZE(msm_clocks_8960_common)
 	+ ARRAY_SIZE(msm_clocks_8960_only)
 	+ ARRAY_SIZE(msm_clocks_8960ab_only)];
 
-static struct clk_lookup msm_clocks_8930[] = {
+static struct clk_lookup msm_clocks_8930[] = {  //: this one
 	CLK_LOOKUP("xo",		cxo_clk.c,	"msm_xo"),
 	CLK_LOOKUP("cxo",		cxo_clk.c,	"wcnss_wlan.0"),
 	CLK_LOOKUP("cxo",		cxo_clk.c,	"pil_riva"),
@@ -6048,7 +6048,14 @@ static struct clk_lookup msm_clocks_8930[] = {
 	CLK_LOOKUP("core_clk",		gsbi10_uart_clk.c, "msm_serial_hsl.1"),
 	CLK_LOOKUP("core_clk",		gsbi11_uart_clk.c, "msm_serial_hsl.2"),
 	CLK_LOOKUP("core_clk",		gsbi12_uart_clk.c,	""),
+//
+// , 20120708, [ ] Porting sensor. GSBI_1 config
+//
+#if 0   //org
 	CLK_LOOKUP("core_clk",		gsbi1_qup_clk.c,	"spi_qsd.0"),
+#else
+	CLK_LOOKUP("core_clk",		gsbi1_qup_clk.c,	"qup_i2c.1"),
+#endif
 	CLK_LOOKUP("core_clk",		gsbi2_qup_clk.c,	""),
 	CLK_LOOKUP("core_clk",		gsbi3_qup_clk.c,	"qup_i2c.3"),
 	CLK_LOOKUP("core_clk",		gsbi4_qup_clk.c,	"qup_i2c.4"),
@@ -6088,7 +6095,14 @@ static struct clk_lookup msm_clocks_8930[] = {
 	CLK_LOOKUP("core_clk",		ce1_core_clk.c,		"qce.0"),
 	CLK_LOOKUP("core_clk",		ce1_core_clk.c,		"qcrypto.0"),
 	CLK_LOOKUP("dma_bam_pclk",	dma_bam_p_clk.c,	NULL),
+//
+// , 20120708, [ ] Porting sensor. GSBI_1 config
+//
+#if 0   //org
 	CLK_LOOKUP("iface_clk",		gsbi1_p_clk.c,		"spi_qsd.0"),
+#else
+	CLK_LOOKUP("iface_clk",		gsbi1_p_clk.c,		"qup_i2c.1"),
+#endif
 	CLK_LOOKUP("iface_clk",		gsbi2_p_clk.c,		""),
 	CLK_LOOKUP("iface_clk",		gsbi3_p_clk.c,		"qup_i2c.3"),
 	CLK_LOOKUP("iface_clk",		gsbi4_p_clk.c,		"qup_i2c.4"),
@@ -6125,6 +6139,7 @@ static struct clk_lookup msm_clocks_8930[] = {
 	CLK_LOOKUP("cam_clk",		cam1_clk.c,	"4-0048"),
 	CLK_LOOKUP("cam_clk",		cam2_clk.c,		NULL),
 	CLK_LOOKUP("cam_clk",		cam0_clk.c,	"4-0020"),
+	CLK_LOOKUP("cam_clk",		cam1_clk.c,	"4-0078"),//20120809
 	CLK_LOOKUP("cam_clk",		cam0_clk.c,	"8-001a"),
 	CLK_LOOKUP("cam_clk",		cam0_clk.c,	"8-0036"),
 	CLK_LOOKUP("cam_clk",		cam1_clk.c,	"8-006c"),
@@ -6825,7 +6840,7 @@ struct clock_init_data apq8064_clock_init_data __initdata = {
 	.late_init = msm8960_clock_late_init,
 };
 
-struct clock_init_data msm8930_clock_init_data __initdata = {
+struct clock_init_data msm8930_clock_init_data __initdata = {   //: this one
 	.table = msm_clocks_8930,
 	.size = ARRAY_SIZE(msm_clocks_8930),
 	.pre_init = msm8930_clock_pre_init,
