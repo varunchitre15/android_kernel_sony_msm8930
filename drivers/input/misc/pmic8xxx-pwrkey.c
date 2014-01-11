@@ -36,21 +36,22 @@ struct pmic8xxx_pwrkey {
 	struct input_dev *pwr;
 	int key_press_irq;
 	int key_release_irq;
-	bool press;
+	//bool press;
 	const struct pm8xxx_pwrkey_platform_data *pdata;
 };
 
 static irqreturn_t pwrkey_press_irq(int irq, void *_pwrkey)
 {
 	struct pmic8xxx_pwrkey *pwrkey = _pwrkey;
-
+/*
 	if (pwrkey->press == true) {
 		pwrkey->press = false;
 		return IRQ_HANDLED;
 	} else {
 		pwrkey->press = true;
 	}
-
+*/
+	printk("Enter [%s] \n",__func__);
 	input_report_key(pwrkey->pwr, KEY_POWER, 1);
 	input_sync(pwrkey->pwr);
 
@@ -60,7 +61,7 @@ static irqreturn_t pwrkey_press_irq(int irq, void *_pwrkey)
 static irqreturn_t pwrkey_release_irq(int irq, void *_pwrkey)
 {
 	struct pmic8xxx_pwrkey *pwrkey = _pwrkey;
-
+/*
 	if (pwrkey->press == false) {
 		input_report_key(pwrkey->pwr, KEY_POWER, 1);
 		input_sync(pwrkey->pwr);
@@ -68,7 +69,8 @@ static irqreturn_t pwrkey_release_irq(int irq, void *_pwrkey)
 	} else {
 		pwrkey->press = false;
 	}
-
+*/
+	printk("Enter [%s] \n",__func__);
 	input_report_key(pwrkey->pwr, KEY_POWER, 0);
 	input_sync(pwrkey->pwr);
 
@@ -182,6 +184,7 @@ static int __devinit pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pwrkey);
 
 	/* check power key status during boot */
+/*
 	err = pm8xxx_read_irq_stat(pdev->dev.parent, key_press_irq);
 	if (err < 0) {
 		dev_err(&pdev->dev, "reading irq status failed\n");
@@ -193,7 +196,7 @@ static int __devinit pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 		input_report_key(pwrkey->pwr, KEY_POWER, 1);
 		input_sync(pwrkey->pwr);
 	}
-
+*/
 	err = request_any_context_irq(key_press_irq, pwrkey_press_irq,
 		IRQF_TRIGGER_RISING, "pmic8xxx_pwrkey_press", pwrkey);
 	if (err < 0) {
@@ -255,12 +258,18 @@ static struct platform_driver pmic8xxx_pwrkey_driver = {
 	},
 };
 
+//S:HY 20130611 #bug3152 input device init sequence for P/L sensor 
+#ifdef ORG_VER
 static int __devinit pmic8xxx_pwrkey_init(void)
 {
 	return platform_driver_register(&pmic8xxx_pwrkey_driver);
 }
 
 subsys_initcall(pmic8xxx_pwrkey_init);
+#else
+module_platform_driver(pmic8xxx_pwrkey_driver);
+#endif
+//E:HY 20130611 #bug3152 input device init sequence for P/L sensor 
 
 MODULE_ALIAS("platform:pmic8xxx_pwrkey");
 MODULE_DESCRIPTION("PMIC8XXX Power Key driver");
