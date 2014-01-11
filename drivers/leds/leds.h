@@ -2,6 +2,7 @@
  * LED Core
  *
  * Copyright 2005 Openedhand Ltd.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * Author: Richard Purdie <rpurdie@openedhand.com>
  *
@@ -16,6 +17,54 @@
 #include <linux/device.h>
 #include <linux/rwsem.h>
 #include <linux/leds.h>
+
+static inline void led_set_testbrightness(struct led_classdev *led_cdev,
+					enum led_testbrightness testvalue)
+{
+	led_cdev->ccitest_brightness = testvalue;
+	if (!(led_cdev->flags & LED_SUSPENDED))
+		led_cdev->testbrightness_set(led_cdev, testvalue);
+}
+
+static inline void led_set_ccimode(struct led_classdev *led_cdev,
+					enum led_op_mode modevalue)
+{
+	led_cdev->ccimode = modevalue;
+	if (!(led_cdev->flags & LED_SUSPENDED))
+		led_cdev->mode_set(led_cdev, modevalue);
+}
+
+static inline void led_set_onms(struct led_classdev *led_cdev,
+					enum led_op_onms blinkonms)
+{
+	led_cdev->onMS= blinkonms;
+	if (!(led_cdev->flags & LED_SUSPENDED))
+		led_cdev->blinkonms_set(led_cdev, blinkonms);
+}
+static inline void led_set_offms(struct led_classdev *led_cdev,
+					enum led_op_onms blinkoffms)
+{
+	led_cdev->offMS= blinkoffms;
+	if (!(led_cdev->flags & LED_SUSPENDED))
+		led_cdev->blinkoffms_set(led_cdev, blinkoffms);
+}
+
+static inline void led_set_tunebrightness(struct led_classdev *led_cdev,
+					enum led_tunebrightness tunevalue)
+{
+	led_cdev->tunebrightness = tunevalue;
+	if (!(led_cdev->flags & LED_SUSPENDED))
+		led_cdev->tunebrightness_set(led_cdev, tunevalue);
+}
+
+static inline void led_set_batterypara(struct led_classdev *led_cdev,
+					enum led_batpa batteryparameter)
+{
+	led_cdev->batpa = batteryparameter;
+	if (!(led_cdev->flags & LED_SUSPENDED))
+		led_cdev->batpa_set(led_cdev, batteryparameter);
+}
+
 
 static inline void led_set_brightness(struct led_classdev *led_cdev,
 					enum led_brightness value)

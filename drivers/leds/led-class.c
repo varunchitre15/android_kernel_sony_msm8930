@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2005 John Lenz <lenz@cs.wisc.edu>
  * Copyright (C) 2005-2007 Richard Purdie <rpurdie@openedhand.com>
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -92,10 +93,215 @@ static ssize_t led_max_brightness_show(struct device *dev,
 	return snprintf(buf, LED_BUFF_SIZE, "%u\n", led_cdev->max_brightness);
 }
 
+
+static void led_update_mode(struct led_classdev *led_cdev)
+{
+	if (led_cdev->mode_get)
+		led_cdev->ccimode = led_cdev->mode_get(led_cdev);
+}
+static void led_update_onms(struct led_classdev *led_cdev)
+{
+	if (led_cdev->onms_get)
+		led_cdev->onMS = led_cdev->onms_get(led_cdev);
+}
+static void led_update_offms(struct led_classdev *led_cdev)
+{
+	if (led_cdev->offms_get)
+		led_cdev->offMS = led_cdev->offms_get(led_cdev);
+}
+
+
+static ssize_t led_mode_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	/* no lock needed for this */
+	led_update_mode(led_cdev);
+
+	return snprintf(buf, LED_BUFF_SIZE, "%u\n", led_cdev->ccimode);
+}
+static ssize_t led_mode_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	ssize_t ret = -EINVAL;
+	char *after;
+	unsigned long state = simple_strtoul(buf, &after, 10);
+	size_t count = after - buf;
+
+	if (isspace(*after))
+		count++;
+
+	if (count == size) {
+		ret = count;
+		led_set_ccimode(led_cdev, state);}
+	
+	return ret;
+}
+
+static ssize_t led_onms_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	/* no lock needed for this */
+	led_update_onms(led_cdev);
+
+	return snprintf(buf, LED_BUFF_SIZE, "%u\n", led_cdev->onMS);
+}
+static ssize_t led_onms_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	ssize_t ret = -EINVAL;
+	char *after;
+	unsigned long state = simple_strtoul(buf, &after, 10);
+	size_t count = after - buf;
+
+	if (isspace(*after))
+		count++;
+
+	if (count == size) {
+		ret = count;
+		led_set_onms(led_cdev, state);}
+	
+	return ret;
+}
+static ssize_t led_offms_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	/* no lock needed for this */
+	led_update_offms(led_cdev);
+
+	return snprintf(buf, LED_BUFF_SIZE, "%u\n", led_cdev->offMS);
+}
+static ssize_t led_offms_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	ssize_t ret = -EINVAL;
+	char *after;
+	unsigned long state = simple_strtoul(buf, &after, 10);
+	size_t count = after - buf;
+
+	if (isspace(*after))
+		count++;
+
+	if (count == size) {
+		ret = count;
+		led_set_offms(led_cdev, state);}
+	
+	return ret;
+}
+
+int old_testbrightenss;
+static ssize_t led_test_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", old_testbrightenss);
+}
+static ssize_t led_test_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	ssize_t ret = -EINVAL;
+	char *after;
+	unsigned long state = simple_strtoul(buf, &after, 10);
+	size_t count = after - buf;
+
+	if (isspace(*after))
+		count++;
+
+	if (count == size) {
+		ret = count;
+		led_set_testbrightness(led_cdev, state);}
+	
+	old_testbrightenss = state;
+	return ret;
+}
+
+static void led_update_tune(struct led_classdev *led_cdev)
+{
+	if (led_cdev->tunebrightness_get)
+		led_cdev->tunebrightness = led_cdev->tunebrightness_get(led_cdev);
+}
+static ssize_t led_tune_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	/* no lock needed for this */
+	led_update_tune(led_cdev);
+
+	return snprintf(buf, LED_BUFF_SIZE, "%u\n", led_cdev->tunebrightness);
+}
+static ssize_t led_tune_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	ssize_t ret = -EINVAL;
+	char *after;
+	unsigned long state = simple_strtoul(buf, &after, 10);
+	size_t count = after - buf;
+
+	if (isspace(*after))
+		count++;
+
+	if (count == size) {
+		ret = count;
+		led_set_tunebrightness(led_cdev, state);}
+	
+	return ret;
+}
+
+static void led_update_batpa(struct led_classdev *led_cdev)
+{
+	if (led_cdev->batpa_get)
+		led_cdev->batpa = led_cdev->batpa_get(led_cdev);
+}
+static ssize_t led_batpa_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	/* no lock needed for this */
+	led_update_batpa(led_cdev);
+
+	return snprintf(buf, LED_BUFF_SIZE, "%u\n", led_cdev->batpa);
+}
+static ssize_t led_batpa_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	ssize_t ret = -EINVAL;
+	char *after;
+	unsigned long state = simple_strtoul(buf, &after, 10);
+	size_t count = after - buf;
+	if (isspace(*after))
+		count++;
+
+	if (count == size) {
+		ret = count;
+		led_set_batterypara(led_cdev, state);}
+	
+	return ret;
+}
+
+
 static struct device_attribute led_class_attrs[] = {
 	__ATTR(brightness, 0644, led_brightness_show, led_brightness_store),
 	__ATTR(max_brightness, 0644, led_max_brightness_show,
 			led_max_brightness_store),
+	__ATTR(flashmode, 0644, led_mode_show, led_mode_store),
+	__ATTR(onms, 0644, led_onms_show, led_onms_store),
+	__ATTR(offms, 0644, led_offms_show, led_offms_store),
+	__ATTR(testbrightness, 0644, led_test_show, led_test_store),
+	__ATTR(tunebrightness, 0644, led_tune_show, led_tune_store),
+	__ATTR(batterypara, 0644, led_batpa_show, led_batpa_store),
+
 #ifdef CONFIG_LEDS_TRIGGERS
 	__ATTR(trigger, 0644, led_trigger_show, led_trigger_store),
 #endif
