@@ -63,3 +63,20 @@ obj-$(CONFIG_BOSCH_BMA150)              += bma150.o
 obj-$(CONFIG_STM_LIS3DH)		+= lis3dh_acc.o
 obj-$(CONFIG_BMP18X)			+= bmp18x-core.o
 obj-$(CONFIG_BMP18X_I2C)		+= bmp18x-i2c.o
+
+#
+# Henry_lin, 20120708, [BugID 166] Porting sensor.
+#
+obj-$(CONFIG_BOSCH_BMA250)	+= bma250.o
+obj-$(CONFIG_SENSORS_AK8963)	+= akm8963.o
+#
+# Henry_lin
+#
+
+ifeq ($(CONFIG_BOSCH_BMA250_ENABLE_INT1),y)
+EXTRA_CFLAGS += -DBMA250_ENABLE_INT1
+endif
+
+ifeq ($(CONFIG_BOSCH_BMA250_ENABLE_INT2),y)
+EXTRA_CFLAGS += -DBMA250_ENABLE_INT2
+endif
