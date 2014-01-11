@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -100,6 +101,11 @@ struct msm_sensor_reg_t {
 	struct msm_camera_i2c_conf_array *no_effect_settings;
 	struct msm_sensor_output_info_t *output_settings;
 	uint8_t num_conf;
+    //B 2012/11/06
+    struct msm_camera_i2c_reg_conf *flash_settings;
+    uint8_t flash_settings_size;
+    //E 2012/11/06
+    struct msm_camera_i2c_conf_array *half_fps_settings;//2013/01/28
 };
 
 enum msm_sensor_device_type_t {
@@ -134,10 +140,17 @@ struct msm_sensor_fn_t {
 
 	int32_t (*sensor_set_fps) (struct msm_sensor_ctrl_t *,
 			struct fps_cfg *);
+//S JackBB 2012/12/3 [Q111M]
 	int32_t (*sensor_write_exp_gain) (struct msm_sensor_ctrl_t *,
 			uint16_t, uint32_t, int32_t, uint16_t);
 	int32_t (*sensor_write_snapshot_exp_gain) (struct msm_sensor_ctrl_t *,
 			uint16_t, uint32_t, int32_t, uint16_t);
+//E JackBB 2012/12/3 [Q111M]
+
+/*S:[bug856] WB Setting for HDR video feature , Jim Lai 20120925 */
+	int32_t (*sensor_write_wb_gain) (struct msm_sensor_ctrl_t *,
+			uint16_t, uint16_t, uint16_t);
+/*E: Jim Lai 20120925 */
 	int32_t (*sensor_setting) (struct msm_sensor_ctrl_t *,
 			int update_type, int rt);
 	int32_t (*sensor_csi_setting) (struct msm_sensor_ctrl_t *,
@@ -148,6 +161,10 @@ struct msm_sensor_fn_t {
 		int, struct sensor_init_cfg *);
 	int32_t (*sensor_get_output_info) (struct msm_sensor_ctrl_t *,
 		struct sensor_output_info_t *);
+/*S: Jim Lai 20121019 */
+	int32_t (*sensor_get_stats_data) (struct msm_sensor_ctrl_t *,
+		struct stats_data_t *);
+/*E: Jim Lai 20121019 */
 	int (*sensor_config) (struct msm_sensor_ctrl_t *, void __user *);
 	int (*sensor_power_down)
 		(struct msm_sensor_ctrl_t *);
@@ -156,6 +173,10 @@ struct msm_sensor_fn_t {
 	void (*sensor_adjust_frame_lines) (struct msm_sensor_ctrl_t *s_ctrl);
 	int32_t (*sensor_get_csi_params)(struct msm_sensor_ctrl_t *,
 		struct csi_lane_params_t *);
+/*S JackBB 2012/10/24 */
+    int32_t (*sensor_write_atr_control)(struct msm_sensor_ctrl_t *s_ctrl,
+        uint16_t controlvar);
+/*E JackBB 2012/10/24  */
 	int (*sensor_set_vision_mode)(struct msm_sensor_ctrl_t *s_ctrl,
 			int32_t vision_mode_enable);
 	int (*sensor_set_vision_ae_control)(
