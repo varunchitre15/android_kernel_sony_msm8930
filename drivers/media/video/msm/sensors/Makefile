@@ -9,6 +9,7 @@ obj-$(CONFIG_OV8825) += ov8825_v4l2.o
 obj-$(CONFIG_IMX074) += imx074_v4l2.o
 obj-$(CONFIG_S5K3L1YX) += s5k3l1yx.o
 obj-$(CONFIG_IMX135) += imx135_v4l2.o
+obj-$(CONFIG_IMX134) += imx134.o
 obj-$(CONFIG_OV2720) += ov2720.o
 obj-$(CONFIG_MT9M114) += mt9m114_v4l2.o
 obj-$(CONFIG_S5K4E1) += s5k4e1_v4l2.o
