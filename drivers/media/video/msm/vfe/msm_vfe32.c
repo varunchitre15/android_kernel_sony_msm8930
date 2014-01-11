@@ -887,9 +887,13 @@ bus_cfg:
 					V32_AXI_BUS_CMD_OFF);
 	msm_camera_io_w(*ch_info++,
 		axi_ctrl->share_ctrl->vfebase + VFE_PIXEL_IF_CFG);
+#ifdef ORG_VER
 	if (msm_camera_io_r(axi_ctrl->share_ctrl->vfebase +
 		V32_GET_HW_VERSION_OFF) ==
 		VFE33_HW_NUMBER) {
+#else
+{
+#endif
 		msm_camera_io_w(*ch_info++,
 			axi_ctrl->share_ctrl->vfebase + VFE_RDI0_CFG);
 		msm_camera_io_w(*ch_info++,

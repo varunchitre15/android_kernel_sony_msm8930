@@ -1,4 +1,5 @@
 /* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -120,7 +121,7 @@ int pm8xxx_spk_mute(bool mute)
 	val = pm8xxx_spk_read(PM8XXX_SPK_CTL1_REG_OFF);
 	if (val < 0)
 		return val;
-	val |= mute << 2;
+	val = (mute << 2) | (val & 0xfb);
 	ret = pm8xxx_spk_write(PM8XXX_SPK_CTL1_REG_OFF, val);
 	return ret;
 }
@@ -139,7 +140,7 @@ int pm8xxx_spk_gain(u8 gain)
 	val = pm8xxx_spk_read(PM8XXX_SPK_CTL1_REG_OFF);
 	if (val < 0)
 		return val;
-	val |= (gain << 4);
+	val = (gain << 4) | (val & 0xF);
 	ret = pm8xxx_spk_write(PM8XXX_SPK_CTL1_REG_OFF, val);
 	if (!ret) {
 		pm8xxx_spk_bank_write(the_spk_chip->base
