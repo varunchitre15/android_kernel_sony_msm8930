@@ -2,6 +2,7 @@
  *
  * Copyright (C) 2007 Google, Inc.
  * Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -3496,9 +3497,44 @@ smem_areas_alloc_fail:
 	return err_ret;
 }
 
+
+#define WRITE_IMEI_TO_SMEM
+#ifdef WRITE_IMEI_TO_SMEM
+#define IMEI_LENGTH 16
+static char imei[IMEI_LENGTH + 1] = {0};
+static int __init check_imei(char* imei_cmdline)
+{
+	if(imei_cmdline == NULL || strlen(imei_cmdline) == 0)
+	{
+		printk("[SMD]imei is empty\n");
+	}
+	else
+	{
+		if(strlen(imei_cmdline) == IMEI_LENGTH)
+		{
+//			printk("[SMD]imei:%s\n", imei_cmdline);
+			strncpy(imei, imei_cmdline, IMEI_LENGTH);
+		}
+		else
+		{
+			printk("[SMD]invalid imei:%s\n", imei_cmdline);
+		}
+	}
+
+	return 0;
+}
+__setup("oemandroidboot.imei=", check_imei);
+#endif // #ifdef WRITE_IMEI_TO_SMEM
+
+
 static int __devinit msm_smd_probe(struct platform_device *pdev)
 {
 	int ret;
+
+#ifdef WRITE_IMEI_TO_SMEM
+	void *imei_addr = NULL;
+#endif // #ifdef WRITE_IMEI_TO_SMEM
+
 
 	SMD_INFO("smd probe\n");
 	INIT_WORK(&probe_work, smd_channel_probe_worker);
@@ -3538,6 +3574,21 @@ static int __devinit msm_smd_probe(struct platform_device *pdev)
 	}
 
 	smd_initialized = 1;
+
+
+#ifdef WRITE_IMEI_TO_SMEM
+	if(imei == NULL || strlen(imei) != IMEI_LENGTH)
+	{
+		printk("[SMD]skip write imei\n");
+	}
+	else
+	{
+		printk("[SMD]write imei:%s\n", imei);
+		imei_addr = smem_alloc2(SMEM_ID_VENDOR2, IMEI_LENGTH + 1);
+		strncpy((char*)imei_addr, imei, IMEI_LENGTH);
+	}
+#endif // #ifdef WRITE_IMEI_TO_SMEM
+
 
 	smd_alloc_loopback_channel();
 	smsm_irq_handler(0, 0);
@@ -3601,10 +3652,171 @@ static struct platform_driver msm_smd_driver = {
 	},
 };
 
+//S:LE
+int board_type_with_hw_id(void);
+#define GPIO_FTM_PIN_NUM 19
+#define GPIO_CAMERA_CAP	68
+#define GPIO_CAMERA_CAP_DVT3_LATER 69
+#define GPIO_BOARD_TYPE_1	50
+#define GPIO_BOARD_TYPE_2	51
+#define GPIO_BOARD_TYPE_3	53
+//Luke
+void set_cci_hw_id(int hw_id);
+#define GPIO_MODEL_TYPE_1       54
+#define GPIO_MODEL_TYPE_2       55
+#define GPIO_MODEL_TYPE_3       63
+
+#define SET_MODEL_TYPE_1    0x01
+#define SET_MODEL_TYPE_2    0x02
+#define SET_MODEL_TYPE_3    0x04
+#define SET_BOARD_TYPE_1    0x10
+#define SET_BOARD_TYPE_2    0x20
+#define SET_BOARD_TYPE_3    0x40
+
+int ftm_pin_is_low = 0;
+int key_capture_pressed = 0;
+extern int if_board_evt;
+
+EXPORT_SYMBOL(ftm_pin_is_low);
+EXPORT_SYMBOL(key_capture_pressed);
+
+#include <linux/gpio.h>
+//E:LE
+
 int __init msm_smd_init(void)
 {
 	static bool registered;
 	int rc;
+
+//S:LE
+	int ret = -1;
+
+	do{
+		int TMP_HW_ID = 0;
+			
+		ret = gpio_request(GPIO_BOARD_TYPE_1, "gpio_board_type1");
+		if (ret)
+		{
+			printk("Requesting gpio_board_type1: FAILED !!!!\n"); 	
+		}
+		else
+		{
+			gpio_tlmm_config(GPIO_CFG(GPIO_BOARD_TYPE_1, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+			if (gpio_get_value(GPIO_BOARD_TYPE_1) == 1)
+				TMP_HW_ID |= SET_BOARD_TYPE_1;		
+		}
+		gpio_free(GPIO_BOARD_TYPE_1);
+
+		ret = gpio_request(GPIO_BOARD_TYPE_2, "gpio_board_type2");
+		if (ret)
+		{
+			printk("Requesting gpio_board_type2: FAILED !!!!\n"); 	
+		
+		}
+		else
+		{
+			gpio_tlmm_config(GPIO_CFG(GPIO_BOARD_TYPE_2, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);			
+			if (gpio_get_value(GPIO_BOARD_TYPE_2) == 1)
+				TMP_HW_ID |= SET_BOARD_TYPE_2;
+		}
+		gpio_free(GPIO_BOARD_TYPE_2);		
+
+		ret = gpio_request(GPIO_BOARD_TYPE_3, "gpio_board_type3");
+		if (ret)
+		{
+			printk("Requesting gpio_board_type3: FAILED !!!!\n"); 	
+		}
+		else
+		{
+			gpio_tlmm_config(GPIO_CFG(GPIO_BOARD_TYPE_3, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);			
+			if (gpio_get_value(GPIO_BOARD_TYPE_3) == 1)
+				TMP_HW_ID |= SET_BOARD_TYPE_3;			
+		}
+		gpio_free(GPIO_BOARD_TYPE_3);	
+
+		if(((TMP_HW_ID >> 4) & 0xF) == 0x0)		
+		{
+			if_board_evt = 1;
+		}
+                // Luke
+		ret = gpio_request(GPIO_MODEL_TYPE_1, "gpio_model_type1");
+		if (ret)
+		{
+			printk("Requesting gpio_model_type1: FAILED !!!!\n"); 	
+		}
+		else
+		{
+			gpio_tlmm_config(GPIO_CFG(GPIO_MODEL_TYPE_1, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+			if (gpio_get_value(GPIO_MODEL_TYPE_1) == 1)	TMP_HW_ID |= SET_MODEL_TYPE_1;		
+		}
+		gpio_free(GPIO_MODEL_TYPE_1);
+
+		ret = gpio_request(GPIO_MODEL_TYPE_2, "gpio_model_type2");
+		if (ret)
+		{
+			printk("Requesting gpio_model_type2: FAILED !!!!\n"); 	
+		}
+		else
+		{
+			gpio_tlmm_config(GPIO_CFG(GPIO_MODEL_TYPE_2, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+			if (gpio_get_value(GPIO_MODEL_TYPE_2) == 1)	TMP_HW_ID |= SET_MODEL_TYPE_2;		
+		}
+		gpio_free(GPIO_MODEL_TYPE_2);
+
+		ret = gpio_request(GPIO_MODEL_TYPE_3, "gpio_model_type3");
+		if (ret)
+		{
+			printk("Requesting gpio_model_type3: FAILED !!!!\n"); 	
+		}
+		else
+		{
+			gpio_tlmm_config(GPIO_CFG(GPIO_MODEL_TYPE_3, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+			if (gpio_get_value(GPIO_MODEL_TYPE_3) == 1)	TMP_HW_ID |= SET_MODEL_TYPE_3;		
+		}
+		gpio_free(GPIO_MODEL_TYPE_3);
+
+                set_cci_hw_id( TMP_HW_ID );
+
+
+	}while(0);
+
+	do{
+		int gpio_cap = 0;
+
+		if((board_type_with_hw_id() - 1) >= 4)
+			gpio_cap = GPIO_CAMERA_CAP_DVT3_LATER;
+		else
+			gpio_cap = GPIO_CAMERA_CAP;
+		
+		ret = gpio_request(GPIO_FTM_PIN_NUM, "ftm_gpio");
+		if (ret)
+		{
+			printk("Requesting ftm_gpio: FAILED !!!!\n"); 	
+			gpio_free(GPIO_FTM_PIN_NUM);
+			break;
+		}
+
+		ret = gpio_request(gpio_cap, "capture_gpio");
+		if (ret)
+		{
+			printk("Requesting capture_gpio: FAILED !!!!\n"); 	
+			gpio_free(GPIO_FTM_PIN_NUM);
+			gpio_free(gpio_cap);
+			break;			
+		}		
+		
+		gpio_tlmm_config(GPIO_CFG(GPIO_FTM_PIN_NUM, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);  
+		gpio_tlmm_config(GPIO_CFG(gpio_cap, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);  
+
+		mdelay(10); //M:LE
+
+		ftm_pin_is_low = (gpio_get_value(GPIO_FTM_PIN_NUM) ? 0 : 1);
+		key_capture_pressed = (gpio_get_value(gpio_cap) ? 0 : 1);
+
+		gpio_free(GPIO_FTM_PIN_NUM);
+		gpio_free(gpio_cap);
+	}while(0);
+//E:LE
 
 	if (registered)
 		return 0;
