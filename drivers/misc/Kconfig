@@ -681,6 +681,11 @@ config BU52031NVX_POUCHDETECT
 	help
 	  depends on BU52031NVX
 
+# 20130602, BugID3067: add NFC feature and PN65O checking to BSP1744
+config NXP_NFC_PN65N
+	tristate "NFC PN65N Driver"
+	default n
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
