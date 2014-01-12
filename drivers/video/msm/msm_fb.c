@@ -60,6 +60,7 @@
 static unsigned char *fbram;
 static unsigned char *fbram_phys;
 static int fbram_size;
+static bool align_buffer = true;
 static boolean bf_supported;
 /* Set backlight on resume after 50 ms after first
  * pan display on the panel. This is to avoid panel specific
@@ -1042,6 +1043,10 @@ int calc_fb_offset(struct msm_fb_data_type *mfd, struct fb_info *fbi, int bpp)
 {
 	struct msm_panel_info *panel_info = &mfd->panel_info;
 	int remainder, yres, offset;
+	if (!align_buffer)
+	{
+	return fbi->var.xoffset * bpp + fbi->var.yoffset * fbi->fix.line_length;
+	}
 
 	if (panel_info->mode2_yres != 0) {
 		yres = panel_info->mode2_yres;
@@ -1628,8 +1633,24 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 
 #ifdef CONFIG_FB_MSM_LOGO
 	/* Flip buffer */
-	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported))
-		;
+	//Taylor--20121018--B
+        if (mfd->index == 0)
+        {
+                if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported)) {
+                        msm_fb_open(fbi,0);
+                        printk("%s: Display on\n",__func__);
+                        //cci_fb_UpdateDone=1; //Taylor--20121105
+                        msm_fb_pan_display(var,fbi);
+                }
+                
+                if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported)){
+                        msm_fb_pan_display(var,fbi);
+                }
+        }
+        //Taylor--20121018--E
+/*Taylor--20121018
+	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported));
+*/
 #endif
 	ret = 0;
 
@@ -1770,6 +1791,15 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 		}
 	}
 #endif /* MSM_FB_ENABLE_DBGFS */
+
+//Taylor--20121018--B
+#ifdef CONFIG_FB_MSM_LOGO
+        bl_updated=1;
+        mdelay(50);
+        msm_fb_set_backlight(mfd,85);
+        printk("%s : Turn on Backlight\n",__func__);
+#endif
+//Taylor--20121018--E
 
 	return ret;
 }
@@ -4469,5 +4499,6 @@ int msm_fb_v4l2_update(void *par,
 #endif
 }
 EXPORT_SYMBOL(msm_fb_v4l2_update);
+module_param(align_buffer, bool, 0644);
 
 module_init(msm_fb_init);

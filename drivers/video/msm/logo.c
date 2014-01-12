@@ -3,6 +3,7 @@
  * Show Logo in RLE 565 format
  *
  * Copyright (C) 2008 Google Incorporated
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -23,6 +24,7 @@
 
 #include <linux/irq.h>
 #include <asm/system.h>
+#include <linux/delay.h> //Taylor--20121018
 
 #define fb_width(fb)	((fb)->var.xres)
 #define fb_height(fb)	((fb)->var.yres)
@@ -30,10 +32,24 @@
 
 static void memset16(void *_ptr, unsigned short val, unsigned count)
 {
-	unsigned short *ptr = _ptr;
+	// unsigned short *ptr = _ptr;
+	unsigned int *ptr = _ptr; //Taylor--20121018
+    unsigned int rgb888_val;
+	
+	//Taylor--20121018--B
+        unsigned int r = (val & 0xF800 )>>11;
+        unsigned int g = (val & 0x07E0 )>> 5;
+        unsigned int b = (val    ) & 0x001F;
+
+        rgb888_val = (r<<3) | (r>>2); 
+        rgb888_val |=((g<<2) | (g>>4))<<8;
+        rgb888_val |=((b<<3) | (b>>2))<<16;
+        //Taylor--20121018--E
+		
 	count >>= 1;
 	while (count--)
-		*ptr++ = val;
+		*ptr++ = rgb888_val; //Taylor--20121018
+		// *ptr++ = val;
 }
 
 /* 565RLE image format: [count(2 bytes), rle(2 bytes)] */
@@ -42,7 +58,8 @@ int load_565rle_image(char *filename, bool bf_supported)
 	struct fb_info *info;
 	int fd, count, err = 0;
 	unsigned max;
-	unsigned short *data, *bits, *ptr;
+	unsigned short *data, *ptr;
+	unsigned int *bits;
 
 	info = registered_fb[0];
 	if (!info) {
@@ -83,7 +100,8 @@ int load_565rle_image(char *filename, bool bf_supported)
 		goto err_logo_free_data;
 	}
 	if (info->screen_base) {
-		bits = (unsigned short *)(info->screen_base);
+		//bits = (unsigned short *)(info->screen_base);
+		bits = (unsigned int *)(info->screen_base);
 		while (count > 3) {
 			unsigned n = ptr[0];
 			if (n > max)
