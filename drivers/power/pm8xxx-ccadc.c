@@ -320,6 +320,7 @@ static int calib_ccadc_program_trim(struct pm8xxx_ccadc_chip *chip,
 	return 0;
 }
 
+#ifdef ORG_VER
 static int get_batt_temp(struct pm8xxx_ccadc_chip *chip, int *batt_temp)
 {
 	int rc;
@@ -336,7 +337,9 @@ static int get_batt_temp(struct pm8xxx_ccadc_chip *chip, int *batt_temp)
 						result.measurement);
 	return 0;
 }
+#endif
 
+#ifdef ORG_VER
 static int get_current_time(unsigned long *now_tm_sec)
 {
 	struct rtc_time tm;
@@ -367,6 +370,7 @@ static int get_current_time(unsigned long *now_tm_sec)
 
 	return 0;
 }
+#endif
 
 static void __pm8xxx_calib_ccadc(int sample_count)
 {
@@ -523,10 +527,12 @@ calibration_unlock:
 	mutex_unlock(&the_chip->calib_mutex);
 }
 
+#ifdef ORG_VER
 static void pm8xxx_calib_ccadc_quick(void)
 {
 	__pm8xxx_calib_ccadc(2);
 }
+#endif
 
 void pm8xxx_calib_ccadc(void)
 {
@@ -802,8 +808,8 @@ static int pm8xxx_ccadc_suspend(struct device *dev)
 #define CCADC_CALIB_TEMP_THRESH 20
 static int pm8xxx_ccadc_resume(struct device *dev)
 {
-  int rc, delta_temp;
-	int batt_temp = 0;
+#ifdef ORG_VER
+	int rc, batt_temp, delta_temp;
 	unsigned long current_time_sec;
 	unsigned long time_since_last_calib;
 
@@ -840,6 +846,10 @@ static int pm8xxx_ccadc_resume(struct device *dev)
 					(time_since_last_calib * 1000)));
 		}
 	}
+#else
+	schedule_delayed_work(&the_chip->calib_ccadc_work,
+				msecs_to_jiffies(180000));
+#endif
 
 	return 0;
 }

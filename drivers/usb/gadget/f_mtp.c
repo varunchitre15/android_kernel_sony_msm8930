@@ -2,6 +2,7 @@
  * Gadget Function Driver for MTP
  *
  * Copyright (C) 2010 Google, Inc.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  * Author: Mike Lockwood <lockwood@android.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -13,6 +14,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * NOTE: This file has been modified by Sony Ericsson Mobile Communications AB /
+ * Sony Mobile Communications AB. Modifications are licensed under the License.
  */
 
 /* #define DEBUG */
@@ -48,11 +51,16 @@
 #define STATE_BUSY                  2   /* processing userspace calls */
 #define STATE_CANCELED              3   /* transaction canceled by host */
 #define STATE_ERROR                 4   /* error from completion routine */
+#define STATE_RESET                 5   /* reset the device */
 
 /* number of tx and rx requests to allocate */
 #define TX_REQ_MAX 4
 #define RX_REQ_MAX 2
 #define INTR_REQ_MAX 5
+
+/* vendor code */
+#define MSOS_VENDOR_CODE	0x08 
+#define MSOS_GOOGLE_VENDOR_CODE	0x01 
 
 /* ID for Microsoft MTP OS String */
 #define MTP_OS_STRING_ID   0xEE
@@ -226,7 +234,7 @@ static u8 mtp_os_string[] = {
 	/* Signature field: "MSFT100" */
 	'M', 0, 'S', 0, 'F', 0, 'T', 0, '1', 0, '0', 0, '0', 0,
 	/* vendor code */
-	1,
+	MSOS_GOOGLE_VENDOR_CODE,
 	/* padding */
 	0
 };
@@ -365,7 +373,7 @@ static void mtp_complete_out(struct usb_ep *ep, struct usb_request *req)
 	struct mtp_dev *dev = _mtp_dev;
 
 	dev->rx_done = 1;
-	if (req->status != 0)
+	if (req->status != 0 && dev->state == STATE_BUSY)
 		dev->state = STATE_ERROR;
 
 	wake_up(&dev->read_wq);
@@ -487,6 +495,12 @@ static ssize_t mtp_read(struct file *fp, char __user *buf,
 		dev->state = STATE_READY;
 		spin_unlock_irq(&dev->lock);
 		return -ECANCELED;
+	} else if (dev->state == STATE_RESET) {
+		/* report a reset state to userspace */
+		dev->state = STATE_READY;
+		spin_unlock_irq(&dev->lock);
+		DBG(cdev, "mtp_read DEVICE RESET. State: %d.\n", dev->state);
+		return -ECONNRESET;
 	}
 	dev->state = STATE_BUSY;
 	spin_unlock_irq(&dev->lock);
@@ -516,7 +530,7 @@ requeue_req:
 		spin_unlock_irq(&dev->lock);
 		goto done;
 	}
-	if (ret < 0) {
+	if (ret < 0 || !dev->rx_done) {
 		r = ret;
 		usb_ep_dequeue(dev->ep_out, req);
 		goto done;
@@ -538,6 +552,8 @@ done:
 	spin_lock_irq(&dev->lock);
 	if (dev->state == STATE_CANCELED)
 		r = -ECANCELED;
+	else if (dev->state == STATE_RESET)
+		r = -ECONNRESET;
 	else if (dev->state != STATE_OFFLINE)
 		dev->state = STATE_READY;
 	spin_unlock_irq(&dev->lock);
@@ -798,6 +814,22 @@ static void receive_file_work(struct work_struct *data)
 			/* wait for our last read to complete */
 			ret = wait_event_interruptible(dev->read_wq,
 				dev->rx_done || dev->state != STATE_BUSY);
+#if 1
+			if (dev->state == STATE_CANCELED) {
+				r = -ECANCELED;
+				if (!dev->rx_done)
+					usb_ep_dequeue(dev->ep_out, read_req);
+				break;
+			}
+
+			if (dev->state == STATE_OFFLINE) {
+				r = -ENODEV;
+                                printk(KERN_ERR "if (dev->state == STATE_OFFLINE)\n");
+				if (!dev->rx_done)
+					usb_ep_dequeue(dev->ep_out, read_req);
+				break;
+			}
+#else
 			if (dev->state == STATE_CANCELED
 					|| dev->state == STATE_OFFLINE) {
 				r = -ECANCELED;
@@ -805,6 +837,20 @@ static void receive_file_work(struct work_struct *data)
 					usb_ep_dequeue(dev->ep_out, read_req);
 				break;
 			}
+#endif
+			if (dev->state == STATE_RESET) {
+				//DBG(cdev, "receive_file_work DEVICE RESET\n");
+                                printk(KERN_ERR "receive_file_work DEVICE RESET\n");
+				r = -ECONNRESET;
+				if (!dev->rx_done) {
+					//DBG(cdev, "usb_ep_dequeue"
+					//	"DEVICE RESET\n");
+                                        printk(KERN_ERR "usb_ep_dequeue...DEVICE RESET\n");
+					usb_ep_dequeue(dev->ep_out, read_req);
+				}
+				break;
+			}
+
 			/* if xfer_file_length is 0xFFFFFFFF, then we read until
 			 * we get a zero length packet
 			 */
@@ -886,6 +932,18 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 			ret = -ECANCELED;
 			goto out;
 		}
+
+		if (dev->state == STATE_RESET) {
+			/* report reset to userspace */
+			//DBG(dev->cdev, "report reset to user space..."
+			//	"mtp_ioctl... DEVICE RESET");
+                        printk(KERN_ERR "report reset to user space...mtp_ioctl... DEVICE RESET\n");
+			dev->state = STATE_READY;
+			spin_unlock_irq(&dev->lock);
+			ret = -ECONNRESET;
+			goto out;
+		}
+
 		if (dev->state == STATE_OFFLINE) {
 			spin_unlock_irq(&dev->lock);
 			ret = -ENODEV;
@@ -955,6 +1013,8 @@ fail:
 	spin_lock_irq(&dev->lock);
 	if (dev->state == STATE_CANCELED)
 		ret = -ECANCELED;
+	else if (dev->state == STATE_RESET)
+		ret = -ECONNRESET;
 	else if (dev->state != STATE_OFFLINE)
 		dev->state = STATE_READY;
 	spin_unlock_irq(&dev->lock);
@@ -1031,14 +1091,58 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 		DBG(cdev, "vendor request: %d index: %d value: %d length: %d\n",
 			ctrl->bRequest, w_index, w_value, w_length);
 
-		if (ctrl->bRequest == 1
-				&& (ctrl->bRequestType & USB_DIR_IN)
-				&& (w_index == 4 || w_index == 5)) {
-			value = (w_length < sizeof(mtp_ext_config_desc) ?
-					w_length : sizeof(mtp_ext_config_desc));
-			memcpy(cdev->req->buf, &mtp_ext_config_desc, value);
+		if (((ctrl->bRequest == MSOS_GOOGLE_VENDOR_CODE) ||
+			(ctrl->bRequest == MSOS_VENDOR_CODE)) &&
+			(ctrl->bRequestType & USB_DIR_IN) && (w_index == 4)) {
+			int total = 0;
+			int func_num = 0;
+			int interface_num = 0;
+			struct mtp_ext_config_desc_header *head;
+			struct mtp_ext_config_desc_function *func;
+			struct usb_configuration        *cfg;
+			struct usb_function *f;
+
+			head = (struct mtp_ext_config_desc_header *)
+				cdev->req->buf;
+			func = (struct mtp_ext_config_desc_function *)
+				(head + 1);
+
+			/* zero clear */
+			memset(cdev->req->buf, 0x00, cdev->bufsiz);
+
+			list_for_each_entry(cfg, &cdev->configs, list) {
+
+				list_for_each_entry(f, &cfg->functions, list) {
+					if (!f)
+						break;
+
+					interface_num++;
+					func->bFirstInterfaceNumber = func_num;
+					func->bInterfaceCount = 1;
+					if (!strncmp(f->name, "mtp", 3)) {
+						memcpy(func->compatibleID,
+							"MTP", 3);
+						VDBG(cdev,
+							"MTP interface found."
+							"Interface_num: %d.\n",
+							interface_num);
+					}
+					func++;
+					func_num++;
+				}
+			}
+
+			total = sizeof(*head) + (sizeof(*func) * func_num);
+
+			/* header section */
+			head->dwLength = total;
+			head->bcdVersion = __constant_cpu_to_le16(0x0100);
+			head->wIndex = __constant_cpu_to_le16(4);
+			head->bCount = func_num;
+			value = min(w_length, (u16)total);
 		}
-	} else if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
+	}
+        if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
 		DBG(cdev, "class request: %d index: %d value: %d length: %d\n",
 			ctrl->bRequest, w_index, w_value, w_length);
 
@@ -1052,6 +1156,23 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 				wake_up(&dev->read_wq);
 				wake_up(&dev->write_wq);
 			}
+			spin_unlock_irqrestore(&dev->lock, flags);
+
+			/* We need to queue a request to read the remaining
+			 *  bytes, but we don't actually need to look at
+			 * the contents.
+			 */
+			value = w_length;
+		} else if (ctrl->bRequest == MTP_REQ_RESET && w_index == 0
+			&& w_value == 0) {
+			DBG(cdev, "MTP_REQ_RESET\n");
+
+			spin_lock_irqsave(&dev->lock, flags);
+			/* Flushing the buffers as mentioned in MTP spec */
+			usb_ep_fifo_flush(dev->ep_out);
+			dev->state = STATE_RESET;
+			wake_up(&dev->read_wq);
+			wake_up(&dev->write_wq);
 			spin_unlock_irqrestore(&dev->lock, flags);
 
 			/* We need to queue a request to read the remaining
@@ -1073,6 +1194,14 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			if (dev->state == STATE_CANCELED)
 				status->wCode =
 					__cpu_to_le16(MTP_RESPONSE_DEVICE_BUSY);
+
+			else if (dev->state == STATE_RESET) {
+				status->wCode =
+					__cpu_to_le16(MTP_RESPONSE_OK);
+				//DBG(cdev, "Device goest to ready state from"
+				//	"reset state... DEVICE RESET\n");
+                                printk(KERN_ERR "Device goest to ready state from reset state... DEVICE RESET\n");
+			}
 			else
 				status->wCode =
 					__cpu_to_le16(MTP_RESPONSE_OK);
