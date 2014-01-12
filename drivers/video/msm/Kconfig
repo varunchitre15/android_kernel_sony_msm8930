@@ -203,6 +203,16 @@ config FB_MSM_MIPI_DSI_NOVATEK
         select FB_MSM_MIPI_DSI
         default n
 
+config FB_MSM_MIPI_DSI_SAMSUNG
+        bool
+        select FB_MSM_MIPI_DSI
+        default n
+
+config FB_MSM_MIPI_DSI_CHIMEI
+        bool
+        select FB_MSM_MIPI_DSI
+        default n
+
 config FB_MSM_MIPI_DSI_NT35510
 	bool
 	select FB_MSM_MIPI_DSI
@@ -344,6 +354,16 @@ config FB_MSM_MIPI_NOVATEK_VIDEO_QHD_PT
 config FB_MSM_MIPI_NOVATEK_CMD_QHD_PT
 	bool
 	select FB_MSM_MIPI_DSI_NOVATEK
+	default n
+
+config FB_MSM_MIPI_SAMSUNG_CMD_FWVGA
+	bool
+	select FB_MSM_MIPI_DSI_SAMSUNG
+	default n
+
+config FB_MSM_MIPI_CHIMEI_CMD_FWVGA
+	bool
+	select FB_MSM_MIPI_DSI_CHIMEI
 	default n
 
 config FB_MSM_MIPI_ORISE_VIDEO_720P_PT
@@ -697,6 +717,11 @@ config FB_MSM_MIPI_NOVATEK_VIDEO_QHD_PT_PANEL
 config FB_MSM_MIPI_NOVATEK_CMD_QHD_PT_PANEL
 	bool "MIPI NOVATEK CMD QHD PT Panel"
 	select FB_MSM_MIPI_NOVATEK_CMD_QHD_PT
+
+config FB_MSM_MIPI_SA77_CMD_FWVGA_PANEL
+	bool "MIPI SA77 CMD FWVGA Panel"
+	select FB_MSM_MIPI_SAMSUNG_CMD_FWVGA
+	select FB_MSM_MIPI_CHIMEI_CMD_FWVGA
 
 config FB_MSM_MIPI_ORISE_VIDEO_720P_PT_PANEL
 	bool "MIPI ORISE VIDEO 720P PT Panel"
