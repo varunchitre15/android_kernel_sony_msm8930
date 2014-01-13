@@ -165,6 +165,9 @@ struct pm8921_charger_platform_data {
 	unsigned int			warm_bat_chg_current;
 	unsigned int			cool_bat_voltage;
 	unsigned int			warm_bat_voltage;
+	unsigned chg_time_out_extra;
+    unsigned int            safety_time_ac;
+    unsigned int            safety_time_usb;
 	int				hysteresis_temp;
 	unsigned int			(*get_batt_capacity_percent) (void);
 	int64_t				batt_id_min;
