@@ -3675,7 +3675,6 @@ void set_cci_hw_id(int hw_id);
 
 int ftm_pin_is_low = 0;
 int key_capture_pressed = 0;
-extern int if_board_evt;
 
 EXPORT_SYMBOL(ftm_pin_is_low);
 EXPORT_SYMBOL(key_capture_pressed);
@@ -3734,10 +3733,6 @@ int __init msm_smd_init(void)
 		}
 		gpio_free(GPIO_BOARD_TYPE_3);	
 
-		if(((TMP_HW_ID >> 4) & 0xF) == 0x0)		
-		{
-			if_board_evt = 1;
-		}
                 // Luke
 		ret = gpio_request(GPIO_MODEL_TYPE_1, "gpio_model_type1");
 		if (ret)
