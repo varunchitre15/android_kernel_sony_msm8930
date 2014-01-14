@@ -3486,7 +3486,8 @@ CONFIG_ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES=y
 #
 # Qualcomm Atheros Prima WLAN module
 #
-# CONFIG_PRIMA_WLAN is not set
+CONFIG_PRIMA_WLAN=m
+CONFIG_PRIMA_WLAN_LFR=y
 
 #
 # Qualcomm MSM specific device drivers
