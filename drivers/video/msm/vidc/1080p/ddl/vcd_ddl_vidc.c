@@ -616,10 +616,12 @@ void ddl_vidc_encode_init_codec(struct ddl_client_context *ddl)
 	scaled_frame_rate = DDL_FRAMERATE_SCALE(encoder->\
 			frame_rate.fps_numerator) /
 			encoder->frame_rate.fps_denominator;
+#if 0
 	if ((encoder->codec.codec == VCD_CODEC_H263) &&
 		(DDL_FRAMERATE_SCALE(DDL_INITIAL_FRAME_RATE)
 		 != scaled_frame_rate))
 		h263_cpfc_enable = true;
+#endif
 	ltr_enable = DDL_IS_LTR_ENABLED(encoder);
 	DDL_MSG_HIGH("ltr_enable = %u", ltr_enable);
 	vidc_sm_set_extended_encoder_control(&ddl->shared_mem
