@@ -28,10 +28,12 @@
 #define STA 0
 #define DCE 1
 
+// BAM_S
 #define SITAR_JACK_BUTTON_MASK (SND_JACK_BTN_0 | SND_JACK_BTN_1 | \
-				SND_JACK_BTN_2 | SND_JACK_BTN_3 | \
+				SND_JACK_BTN_2 ) /*| SND_JACK_BTN_3 | \
 				SND_JACK_BTN_4 | SND_JACK_BTN_5 | \
-				SND_JACK_BTN_6 | SND_JACK_BTN_7)
+				SND_JACK_BTN_6 | SND_JACK_BTN_7)*/
+// BAM_E
 
 extern const u8 sitar_reg_readable[SITAR_CACHE_SIZE];
 extern const u32 sitar_1_reg_readable[SITAR_1_X_ONLY_REGISTERS];
