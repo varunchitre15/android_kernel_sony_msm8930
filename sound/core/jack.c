@@ -2,6 +2,7 @@
  *  Jack abstraction layer
  *
  *  Copyright 2008 Wolfson Microelectronics
+ *  Copyright (C) 2012 Sony Mobile Communications AB.
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -24,6 +25,7 @@
 #include <linux/module.h>
 #include <sound/jack.h>
 #include <sound/core.h>
+#include <linux/switch.h>  // BAM_S C 130530 [Mig:]
 
 static int jack_switch_types[] = {
 	SW_HEADPHONE_INSERT,
@@ -36,6 +38,34 @@ static int jack_switch_types[] = {
 	SW_HPHR_OVERCURRENT,
 	SW_UNSUPPORT_INSERT,
 };
+
+// BAM_S C 130530 [Mig:]
+static ssize_t simple_remote_print_name(struct switch_dev *swdev, char *buf)
+{
+	//struct simple_remote_driver *jack =
+	//	container_of(sdev, struct simple_remote_driver, swdev);
+	printk("%s\n", __func__);
+
+	switch (switch_get_state(swdev)) {
+	case NO_DEVICE:
+		printk("No Device\n");
+		return sprintf(buf, "No Device\n");
+	case DEVICE_HEADSET:
+		printk("Headset\n");
+		return sprintf(buf, "Headset\n");
+	case DEVICE_HEADPHONE:
+		printk("Headphone\n");
+		return sprintf(buf, "Headphone\n");
+	case DEVICE_UNSUPPORTED:
+		printk("Unsupported\n");
+		return sprintf(buf, "Unsupported\n");
+	case DEVICE_UNKNOWN:
+		printk("Device Unknown\n");
+		return sprintf(buf, "Device Unknown\n");
+	}
+	return -EINVAL;
+}
+// BAM_E C 130530
 
 static int snd_jack_dev_free(struct snd_device *device)
 {
@@ -51,6 +81,14 @@ static int snd_jack_dev_free(struct snd_device *device)
 	else
 		input_free_device(jack->input_dev);
 
+// BAM_S C 130530 [Mig:]
+	if (jack->registered)
+		input_unregister_device(jack->indev_appkey);
+	else
+		input_free_device(jack->indev_appkey);
+	switch_dev_unregister(&jack->swdev);	// SoMC Uevent Start
+// BAM_E C 130530
+
 	kfree(jack->id);
 	kfree(jack);
 
@@ -62,6 +100,36 @@ static int snd_jack_dev_register(struct snd_device *device)
 	struct snd_jack *jack = device->device_data;
 	struct snd_card *card = device->card;
 	int err, i;
+
+// BAM_S C 130530 [Mig:]
+	//if( !strcmp(jack->id, "Headset Jack"))
+		
+	if( !strcmp(jack->id, "Button Jack"))
+		jack->indev_appkey->name = "simple_remote_appkey";
+	else
+		jack->indev_appkey->name = "hs_plug";
+	
+	/* Default to the sound card device. */
+	if (!jack->indev_appkey->dev.parent)
+		jack->indev_appkey->dev.parent = snd_card_get_device_link(card);
+
+	/* Add capabilities for any keys that are enabled */
+	for (i = 0; i < ARRAY_SIZE(jack->key); i++) {
+		int testbit = SND_JACK_BTN_0 >> i;
+
+		if (!(jack->type & testbit))
+			continue;
+
+		if (!jack->key[i])
+			jack->key[i] = BTN_0 + i;
+
+		input_set_capability(jack->indev_appkey, EV_KEY, jack->key[i]);
+	}
+
+	err = input_register_device(jack->indev_appkey);
+	if (err != 0)
+		return err;
+// BAM_E C 130530
 
 	snprintf(jack->name, sizeof(jack->name), "%s %s",
 		 card->shortname, jack->id);
@@ -121,6 +189,46 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 
 	jack->id = kstrdup(id, GFP_KERNEL);
 
+// BAM_S C 130530 [Mig:]
+	if( !strcmp(jack->id, "Headset Jack"))
+	{
+		printk("Headset Jack swdev register\n");
+		jack->swdev.name = "h2w";
+		jack->swdev.print_name = simple_remote_print_name;
+		err = switch_dev_register(&jack->swdev);
+		if (err < 0) {
+			printk("switch_dev_register failed:%d\n", err);
+		}
+	}
+	else if( !strcmp(jack->id, "Button Jack"))
+	{
+		printk("Button Jack swdev register\n");
+		jack->swdev.name = "h2w_Bt";
+		jack->swdev.print_name = simple_remote_print_name;
+		err = switch_dev_register(&jack->swdev);
+		if (err < 0) {
+			printk("switch_dev_register failed:%d\n", err);
+		}
+	}
+	// SoMC Uevent End
+
+	// SoMC Input Event Start
+	jack->indev_appkey = input_allocate_device();
+	if (jack->indev_appkey == NULL) {
+		err = -ENOMEM;
+		goto fail_input;
+	}
+
+	jack->indev_appkey->phys = "ALSA";
+
+	jack->type = type;
+
+	for (i = 0; i < ARRAY_SIZE(jack_switch_types); i++)
+		if (type & (1 << i))
+			input_set_capability(jack->indev_appkey, EV_SW,
+						 jack_switch_types[i]);
+// BAM_S C 130530
+
 	jack->input_dev = input_allocate_device();
 	if (jack->input_dev == NULL) {
 		err = -ENOMEM;
@@ -145,6 +253,7 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 	return 0;
 
 fail_input:
+	input_free_device(jack->indev_appkey);  // BAM_S C 130530 [Mig:]
 	input_free_device(jack->input_dev);
 	kfree(jack->id);
 	kfree(jack);
@@ -237,6 +346,34 @@ void snd_jack_report(struct snd_jack *jack, int status)
 	}
 
 	input_sync(jack->input_dev);
+
+	// BAM_S C 130530 [Mig:]
+	if( !strcmp(jack->id, "Headset Jack"))
+	{
+		if( status )
+		{
+			switch ( status )
+			{
+				case SND_JACK_HEADPHONE:
+					switch_set_state(&jack->swdev, DEVICE_HEADPHONE);
+					break;
+				case SND_JACK_HEADSET:
+					switch_set_state(&jack->swdev, DEVICE_HEADSET);
+					break;
+				case SND_JACK_UNSUPPORTED:
+					switch_set_state(&jack->swdev, DEVICE_UNSUPPORTED);
+					break;
+				default:
+					switch_set_state(&jack->swdev, DEVICE_UNKNOWN);
+					break;
+			}
+		}
+		else
+		{
+			switch_set_state(&jack->swdev, NO_DEVICE);
+		}
+	}
+	// BAM_E C 130530
 }
 EXPORT_SYMBOL(snd_jack_report);
 
