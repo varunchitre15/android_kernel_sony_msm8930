@@ -61,7 +61,7 @@ static int __init mipi_cmd_samsung_fwvga_pt_init(void)
 	//pinfo.is_3d_panel = FB_TYPE_3D_PANEL;
 	pinfo.lcd.vsync_enable = TRUE;
 	pinfo.lcd.hw_vsync_mode = TRUE;
-	pinfo.lcd.refx100 = 6000; /* adjust refx100 to prevent tearing */
+	pinfo.lcd.refx100 = 6300; /* adjust refx100 to prevent tearing */
 	pinfo.lcd.v_back_porch = 9;
 	pinfo.lcd.v_front_porch = 9;
 	pinfo.lcd.v_pulse_width = 4;
