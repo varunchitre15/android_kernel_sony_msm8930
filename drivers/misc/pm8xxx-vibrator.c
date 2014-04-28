@@ -226,15 +226,24 @@ static int __devinit pm8xxx_vib_probe(struct platform_device *pdev)
 	int rc;
 
 	if (!pdata)
+	{
+	pr_info("vibrator: registration failed due to pdata\n");
 		return -EINVAL;
+		}
 
 	if (pdata->level_mV < VIB_MIN_LEVEL_mV ||
 			 pdata->level_mV > VIB_MAX_LEVEL_mV)
+	{
+		pr_info("vibrator: Registration failed due to voltage issues\n");
 		return -EINVAL;
+		}
 
 	vib = kzalloc(sizeof(*vib), GFP_KERNEL);
 	if (!vib)
+	{
+	pr_info("vibrator: no memory\n");
 		return -ENOMEM;
+		}
 
 	vib->pdata	= pdata;
 	vib->level	= pdata->level_mV / 100;
@@ -258,17 +267,26 @@ static int __devinit pm8xxx_vib_probe(struct platform_device *pdev)
 	 */
 	rc = pm8xxx_vib_read_u8(vib, &val, VIB_DRV);
 	if (rc < 0)
+	{
+		pr_info("vibrator: pm8xxx_vib_read_u8 failed\n");
 		goto err_read_vib;
+		}
 	val &= ~VIB_DRV_EN_MANUAL_MASK;
 	rc = pm8xxx_vib_write_u8(vib, val, VIB_DRV);
 	if (rc < 0)
+	{
+		pr_info("vibrator: pm8xxx_vib_write_u8 failed\n");
 		goto err_read_vib;
+		}
 
 	vib->reg_vib_drv = val;
 
 	rc = timed_output_dev_register(&vib->timed_dev);
 	if (rc < 0)
+	{
+		pr_info("timed_output_dev_register failed\n");
 		goto err_read_vib;
+		}
 #if 0
 	pm8xxx_vib_enable(&vib->timed_dev, pdata->initial_vibrate_ms);
 #endif
