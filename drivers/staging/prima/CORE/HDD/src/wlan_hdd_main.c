@@ -229,6 +229,7 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
    VOS_STATUS status;
    hdd_context_t *pHddCtx;
 #endif
+   long result;
 
    //Make sure that this callback corresponds to our device.
    if ((strncmp(dev->name, "wlan", 4)) &&
@@ -278,25 +279,17 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
         break;
 
    case NETDEV_GOING_DOWN:
-        if( pHddCtx->scan_info.mScanPending != FALSE )
-        { 
-           int result;
-           INIT_COMPLETION(pHddCtx->scan_info.abortscan_event_var);
-           hdd_abort_mac_scan(pAdapter->pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
-           result = wait_for_completion_interruptible_timeout(
-                               &pHddCtx->scan_info.abortscan_event_var,
-                               msecs_to_jiffies(WLAN_WAIT_TIME_ABORTSCAN));
-           if(!result)
-           {
-              VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                         "%s: Timeout occurred while waiting for abortscan" ,
-                          __func__);
-           }
+        result = wlan_hdd_scan_abort(pAdapter);
+        if (result <= 0)
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                       "%s: Timeout occurred while waiting for abortscan %ld",
+                        __func__, result);
         }
         else
         {
            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-               "%s: Scan is not Pending from user" , __func__);
+               "%s: Scan Abort Successful" , __func__);
         }
 #ifdef WLAN_BTAMP_FEATURE
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"%s: disabling AMP", __func__);
@@ -3307,6 +3300,7 @@ static hdd_adapter_t* hdd_alloc_station_adapter( hdd_context_t *pHddCtx, tSirMac
       init_completion(&pAdapter->linkup_event_var);
       init_completion(&pAdapter->cancel_rem_on_chan_var);
       init_completion(&pAdapter->rem_on_chan_ready_event);
+      init_completion(&pAdapter->pno_comp_var);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
       init_completion(&pAdapter->offchannel_tx_event);
 #endif
@@ -3911,12 +3905,7 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
          /* A Mutex Lock is introduced while changing/initializing the mode to
           * protect the concurrent access for the Adapters by TDLS module.
           */
-         if (mutex_lock_interruptible(&pHddCtx->tdls_lock))
-         {
-             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                       "%s: unable to lock list", __func__);
-             return NULL;
-         }
+          mutex_lock(&pHddCtx->tdls_lock);
 #endif
 
          pAdapter->wdev.iftype = (session_type == WLAN_HDD_P2P_CLIENT) ?
@@ -4136,12 +4125,7 @@ VOS_STATUS hdd_close_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
       /* A Mutex Lock is introduced while changing/initializing the mode to
        * protect the concurrent access for the Adapters by TDLS module.
        */
-       if (mutex_lock_interruptible(&pHddCtx->tdls_lock))
-       {
-           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                     "%s: unable to lock list", __func__);
-           return VOS_STATUS_E_FAILURE;
-       }
+       mutex_lock(&pHddCtx->tdls_lock);
 #endif
 
       hdd_remove_adapter( pHddCtx, pAdapterNode );
@@ -5777,6 +5761,7 @@ int hdd_wlan_startup(struct device *dev )
    init_completion(&pHddCtx->scan_info.scan_req_completion_event);
    init_completion(&pHddCtx->scan_info.abortscan_event_var);
    init_completion(&pHddCtx->wiphy_channel_update_event);
+   init_completion(&pHddCtx->ssr_comp_var);
 
    spin_lock_init(&pHddCtx->schedScan_lock);
 
@@ -5884,6 +5869,8 @@ int hdd_wlan_startup(struct device *dev )
           goto err_free_hdd_context;
       }
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: FTM driver loaded success fully",__func__);
+
+      vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
       return VOS_STATUS_SUCCESS;
    }
 
@@ -6551,7 +6538,7 @@ static void hdd_driver_exit(void)
 {
    hdd_context_t *pHddCtx = NULL;
    v_CONTEXT_t pVosContext = NULL;
-   int retry = 0;
+   unsigned long rc = 0;
 
    pr_info("%s: unloading driver v%s\n", WLAN_MODULE_NAME, QWLAN_VERSIONSTR);
 
@@ -6573,18 +6560,21 @@ static void hdd_driver_exit(void)
    }
    else
    {
-      while (pHddCtx->isLogpInProgress) {
+       INIT_COMPLETION(pHddCtx->ssr_comp_var);
+
+       if (pHddCtx->isLogpInProgress)
+       {
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-              "%s:SSR in Progress; block rmmod for 1 second!!!", __func__);
-         msleep(1000);
-
-         if (retry++ == HDD_MOD_EXIT_SSR_MAX_RETRIES) {
-            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-              "%s:SSR never completed, fatal error", __func__);
-            VOS_BUG(0);
+              "%s:SSR in Progress; block rmmod !!!", __func__);
+         rc = wait_for_completion_timeout(&pHddCtx->ssr_comp_var,
+                                          msecs_to_jiffies(30000));
+         if(!rc)
+         {
+              VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+              "%s:SSR timedout, fatal error", __func__);
+              VOS_BUG(0);
          }
-      }
-
+       }
 
       pHddCtx->isLoadUnloadInProgress = TRUE;
       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
@@ -7140,6 +7130,32 @@ VOS_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx)
 VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx)
 {
     return sme_isSta_p2p_clientConnected(pHddCtx->hHal);
+}
+
+int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter)
+{
+    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+    hdd_scaninfo_t *pScanInfo = NULL;
+    int status;
+
+    pScanInfo = &pHddCtx->scan_info;
+    if (pScanInfo->mScanPending)
+    {
+        INIT_COMPLETION(pScanInfo->abortscan_event_var);
+        hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
+
+        status = wait_for_completion_interruptible_timeout(
+                           &pScanInfo->abortscan_event_var,
+                           msecs_to_jiffies(5000));
+        if ((!status) || (status == -ERESTARTSYS))
+        {
+           VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: Timeout occurred while waiting for abort scan",
+                  __func__);
+            return -ETIMEDOUT;
+        }
+    }
+    return status;
 }
 
 //Register the module init/exit functions

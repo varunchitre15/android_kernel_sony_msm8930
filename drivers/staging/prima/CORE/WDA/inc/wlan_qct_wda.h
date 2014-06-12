@@ -1103,6 +1103,8 @@ eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
 v_BOOL_t WDA_IsHwFrameTxTranslationCapable(v_PVOID_t pVosGCtx, 
                                                       tANI_U8 staIdx);
 
+v_BOOL_t WDA_IsSelfSTA(v_PVOID_t pVosGCtx,tANI_U8 staIdx);
+
 #  define WDA_EnableUapsdAcParams(vosGCtx, staId, uapsdInfo) \
          WDA_SetUapsdAcParamsReq(vosGCtx, staId, uapsdInfo)
 
@@ -1809,9 +1811,10 @@ tANI_U8 WDA_getFwWlanFeatCaps(tANI_U8 featEnumValue);
   PARAMETERS
     pMac : upper MAC context pointer
     displaySnapshot : Display DXE snapshot option
-    enableStallDetect : Enable stall detect feature
-                        This feature will take effect to data performance
-                        Not integrate till fully verification
+    debugFlags      : Enable stall detect features
+                      defined by WPAL_DeviceDebugFlags
+                      These features may effect
+                      data performance.
 
   RETURN VALUE
     NONE
@@ -1821,7 +1824,7 @@ void WDA_TransportChannelDebug
 (
   tpAniSirGlobal pMac,
   v_BOOL_t       displaySnapshot,
-  v_BOOL_t       toggleStallDetect
+  v_U8_t         debugFlags
 );
 
 /*==========================================================================
