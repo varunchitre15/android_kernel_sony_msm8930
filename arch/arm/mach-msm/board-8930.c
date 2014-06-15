@@ -107,6 +107,7 @@
 #include <linux/i2c/tsl2772.h>	//E:Andy_li 20120708 P/L sensor porting
 #include "board-8930.h"
 #include "acpuclock-krait.h"
+#include <mach/board_taoshan.h>
 
 #include <linux/nfc/pn65n.h> 
 
@@ -978,6 +979,7 @@ static void __init msm8930_early_memory(void)
 static void __init msm8930_reserve(void)
 {
 	msm_reserve();
+	taoshan_reserve();
 }
 
 static void __init msm8930_allocate_memory_regions(void)
@@ -3983,6 +3985,7 @@ static void __init msm8930_cdp_init(void)
 	if (!machine_is_msm8930_evt())
 		mxt_init_vkeys_8930();
 	register_i2c_devices();
+	taoshan_add_ramconsole_devices();
 	msm8930_init_fb();
 
 	if (socinfo_get_platform_subtype() == PLATFORM_SUBTYPE_SGLTE) {
