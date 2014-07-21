@@ -258,10 +258,10 @@ const char cci_band_type_str[][20] =
 
 const char cci_mode_name_str[][20] = 
 {
-"Sa76",
-"Sa77",
-"Sa86",
-"Sa87"
+"76",
+"77",
+"86",
+"87"
 };
 
 const char cci_nfc_name_str[][20] = 
