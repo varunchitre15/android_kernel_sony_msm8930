@@ -7136,7 +7136,7 @@ int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter)
 {
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     hdd_scaninfo_t *pScanInfo = NULL;
-    int status;
+    int status = 0;
 
     pScanInfo = &pHddCtx->scan_info;
     if (pScanInfo->mScanPending)
