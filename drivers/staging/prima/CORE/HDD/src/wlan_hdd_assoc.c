@@ -81,6 +81,9 @@
 #include "wlan_hdd_tdls.h"
 #endif
 #include "sme_Api.h"
+#ifdef DEBUG_ROAM_DELAY
+#include "vos_utils.h"
+#endif
 
 v_BOOL_t mibIsDot11DesiredBssTypeInfrastructure( hdd_adapter_t *pAdapter );
 
@@ -1194,7 +1197,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
             ft_carrier_on = TRUE;
         }
 #endif
-        pHddCtx->sta_to_adapter[pRoamInfo->staId] = pAdapter;
+        /* Check for STAID */
+        if( (WLAN_MAX_STA_COUNT + 3) > pRoamInfo->staId )
+            pHddCtx->sta_to_adapter[pRoamInfo->staId] = pAdapter;
+        else
+            hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Wrong Staid: %d", __func__, pRoamInfo->staId);
 
 #ifdef FEATURE_WLAN_TDLS
         wlan_hdd_tdls_connection_callback(pAdapter);
@@ -1324,10 +1331,15 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                         rspRsnIe);
 #if  defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
                 if(ft_carrier_on)
+                {
                     hdd_SendReAssocEvent(dev, pAdapter, pRoamInfo, reqRsnIe, reqRsnLength);
+#ifdef DEBUG_ROAM_DELAY
+                    //HACK we are using the buff len as Auth Type
+                    vos_record_roam_event(e_HDD_SEND_REASSOC_RSP, NULL, 0);
+#endif
+                }
                 else
-#endif /* FEATURE_WLAN_CCX */
-
+#endif /* FEATURE_WLAN_CCX*/
                 {
                     /* inform connect result to nl80211 */
                     cfg80211_connect_result(dev, pRoamInfo->bssid,
@@ -1393,8 +1405,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 
         // Start the Queue
         netif_tx_wake_all_queues(dev);
-    }  
-    else 
+#ifdef DEBUG_ROAM_DELAY
+        vos_record_roam_event(e_HDD_ENABLE_TX_QUEUE, NULL, 0);
+#endif
+    }
+    else
     {
         hdd_context_t* pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
 
@@ -1698,13 +1713,18 @@ static eHalStatus hdd_RoamSetKeyCompleteHandler( hdd_adapter_t *pAdapter, tCsrRo
                                             WLANTL_STA_AUTHENTICATED );
 
          pHddStaCtx->conn_info.uIsAuthenticated = VOS_TRUE;
+#ifdef DEBUG_ROAM_DELAY
+         vos_record_roam_event(e_HDD_SET_GTK_RSP, NULL, 0);
+#endif
       }
       else
       {
          vosStatus = WLANTL_STAPtkInstalled( pHddCtx->pvosContext,
-                                            pHddStaCtx->conn_info.staId[ 0 ]);
+                                                pHddStaCtx->conn_info.staId[ 0 ]);
+#ifdef DEBUG_ROAM_DELAY
+         vos_record_roam_event(e_HDD_SET_PTK_RSP, (void *)pRoamInfo->peerMac, 6);
+#endif
       }
-
       pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
    }
    else
@@ -2258,6 +2278,7 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
                     (WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set = FALSE;
             }
             pHddStaCtx->ft_carrier_on = FALSE;
+            pHddStaCtx->hdd_ReassocScenario = FALSE;
             break;
 
         case eCSR_ROAM_FT_START:
@@ -2272,6 +2293,9 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
             {
                 struct net_device *dev = pAdapter->dev;
                 netif_tx_disable(dev);
+#ifdef DEBUG_ROAM_DELAY
+                vos_record_roam_event(e_HDD_DISABLE_TX_QUEUE, NULL, 0);
+#endif
                 /*
                  * Deregister for this STA with TL with the objective to flush
                  * all the packets for this STA from wmm_tx_queue. If not done here,
@@ -2450,6 +2474,7 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
                     }
                 }
                 halStatus = hdd_RoamSetKeyCompleteHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
+                pHddStaCtx->hdd_ReassocScenario = FALSE;
             }
             break;
 #ifdef WLAN_FEATURE_VOWIFI_11R

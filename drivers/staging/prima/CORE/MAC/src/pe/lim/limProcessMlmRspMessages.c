@@ -75,6 +75,10 @@
 #endif
 #include "wlan_qct_wda.h"
 
+#ifdef DEBUG_ROAM_DELAY
+#include "vos_utils.h"
+#endif
+
 static void limHandleSmeJoinResult(tpAniSirGlobal, tSirResultCodes, tANI_U16,tpPESession);
 static void limHandleSmeReaasocResult(tpAniSirGlobal, tSirResultCodes, tANI_U16, tpPESession);
 void limProcessMlmScanCnf(tpAniSirGlobal, tANI_U32 *);
@@ -130,6 +134,7 @@ limProcessMlmRspMessages(tpAniSirGlobal pMac, tANI_U32 msgType, tANI_U32 *pMsgBu
            PELOGE(limLog(pMac, LOGE,FL("Buffer is Pointing to NULL"));)
            return;
     }
+    MTRACE(macTrace(pMac, TRACE_CODE_TX_LIM_MSG, 0, msgType));
     switch (msgType)
     {
         case LIM_MLM_SCAN_CNF:
@@ -1930,6 +1935,8 @@ void limProcessStaMlmAddStaRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ ,tpPESess
     else
     {
         limLog( pMac, LOGE, FL( "ADD_STA failed!"));
+        if(psessionEntry->limSmeState == eLIM_SME_WT_REASSOC_STATE)
+           mesgType = LIM_MLM_REASSOC_CNF;
         mlmAssocCnf.resultCode = (tSirResultCodes) eSIR_SME_REFUSED;
     }
 end:
@@ -2762,6 +2769,9 @@ void limSetLinkStateForPostAssocCallback(tpAniSirGlobal pMac, void *msgParam )
         limPrintMacAddr(pMac, pAddBssParams->staContext.staMac, LOGE);
         goto end;
     }
+#ifdef DEBUG_ROAM_DELAY
+    vos_record_roam_event(e_LIM_ADD_BS_RSP, NULL, 0);
+#endif
     // Prepare and send Reassociation request frame
     // start reassoc timer.
     pMac->lim.limTimers.gLimReassocFailureTimer.sessionId = psessionEntry->peSessionId;
@@ -2792,7 +2802,9 @@ void limSetLinkStateForPostAssocCallback(tpAniSirGlobal pMac, void *msgParam )
     pMac->lim.reAssocRetryAttempt = 0;
 #endif
     limSendReassocReqWithFTIEsMgmtFrame(pMac, psessionEntry->pLimMlmReassocReq, psessionEntry);
-
+#ifdef DEBUG_ROAM_DELAY
+    vos_record_roam_event(e_LIM_SEND_REASSOC_REQ, NULL, 0);
+#endif
     psessionEntry->limPrevMlmState = psessionEntry->limMlmState;
     psessionEntry->limMlmState = eLIM_MLM_WT_FT_REASSOC_RSP_STATE;
     MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, eLIM_MLM_WT_FT_REASSOC_RSP_STATE));
