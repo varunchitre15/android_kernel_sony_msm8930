@@ -559,7 +559,6 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
    hdd_priv_data_t priv_data;
    tANI_U8 *command = NULL;
    int ret = 0;
-    hdd_context_t *pHddCtx;
 
    if (NULL == pAdapter)
    {
@@ -575,11 +574,10 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        goto exit; 
    }
 
-   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
-   if (0 != (wlan_hdd_validate_context(pHddCtx)))
+   if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: invalid context", __func__);
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                                  "%s:LOGP in Progress. Ignore!!!", __func__);
        ret = -EBUSY;
        goto exit;
    }
@@ -5101,7 +5099,6 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    hdd_adapter_t* pAdapter;
    struct statsContext powerContext;
    long lrc;
-   hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
 
    ENTER();
 
@@ -5109,52 +5106,46 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    {
       // Unloading, restart logic is no more required.
       wlan_hdd_restart_deinit(pHddCtx);
+   }
 
-      vosStatus = hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
-      while (NULL != pAdapterNode && VOS_STATUS_E_EMPTY != vosStatus)
+   if (VOS_STA_SAP_MODE != hdd_get_conparam())
+   {
+      if (VOS_FTM_MODE != hdd_get_conparam())
       {
-         pAdapter = pAdapterNode->pAdapter;
-         if (NULL != pAdapter)
+         hdd_adapter_t* pAdapter = hdd_get_adapter(pHddCtx,
+                                      WLAN_HDD_INFRA_STATION);
+         if (pAdapter == NULL)
+            pAdapter = hdd_get_adapter(pHddCtx, WLAN_HDD_P2P_CLIENT);
+
+         if (pAdapter != NULL)
          {
             wlan_hdd_cfg80211_pre_voss_stop(pAdapter);
             hdd_UnregisterWext(pAdapter->dev);
-
-            if (WLAN_HDD_INFRA_STATION ==  pAdapter->device_mode ||
-                WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)
-            {
-                wlan_hdd_cfg80211_pre_voss_stop(pAdapter);
-                hdd_UnregisterWext(pAdapter->dev);
-            }
-            // Cancel any outstanding scan requests.  We are about to close all
-            // of our adapters, but an adapter structure is what SME passes back
-            // to our callback function. Hence if there are any outstanding scan
-            // requests then there is a race condition between when the adapter
-            // is closed and when the callback is invoked.We try to resolve that
-            // race condition here by canceling any outstanding scans before we
-            // close the adapters.
-            // Note that the scans may be cancelled in an asynchronous manner,
-            // so ideally there needs to be some kind of synchronization. Rather
-            // than introduce a new synchronization here, we will utilize the
-            // fact that we are about to Request Full Power, and since that is
-            // synchronized, the expectation is that by the time Request Full
-            // Power has completed all scans will be cancelled.
-            if (pHddCtx->scan_info.mScanPending)
-            {
-                hddLog(VOS_TRACE_LEVEL_INFO,
-                       FL("abort scan mode: %d sessionId: %d"),
-                           pAdapter->device_mode,
-                           pAdapter->sessionId);
-                hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
-            }
          }
-         vosStatus = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
-         pAdapterNode = pNext;
       }
    }
-   else
+
+   if (VOS_FTM_MODE == hdd_get_conparam())
    {
       wlan_hdd_ftm_close(pHddCtx);
       goto free_hdd_ctx;
+   }
+   //Stop the Interface TX queue.
+   //netif_tx_disable(pWlanDev);
+   //netif_carrier_off(pWlanDev);
+
+   if (VOS_STA_SAP_MODE == hdd_get_conparam())
+   {
+      pAdapter = hdd_get_adapter(pHddCtx,
+                                   WLAN_HDD_SOFTAP);
+   }
+   else
+   {
+      if (VOS_FTM_MODE != hdd_get_conparam())
+      {
+         pAdapter = hdd_get_adapter(pHddCtx,
+                                    WLAN_HDD_INFRA_STATION);
+      }
    }
    /* DeRegister with platform driver as client for Suspend/Resume */
    vosStatus = hddDeregisterPmOps(pHddCtx);
@@ -5169,6 +5160,21 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: hddDevTmUnregisterNotifyCallback failed",__func__);
    }
+
+   // Cancel any outstanding scan requests.  We are about to close all
+   // of our adapters, but an adapter structure is what SME passes back
+   // to our callback function.  Hence if there are any outstanding scan
+   // requests then there is a race condition between when the adapter
+   // is closed and when the callback is invoked.  We try to resolve that
+   // race condition here by canceling any outstanding scans before we
+   // close the adapters.
+   // Note that the scans may be cancelled in an asynchronous manner, so
+   // ideally there needs to be some kind of synchronization.  Rather than
+   // introduce a new synchronization here, we will utilize the fact that
+   // we are about to Request Full Power, and since that is synchronized,
+   // the expectation is that by the time Request Full Power has completed,
+   // all scans will be cancelled.
+   hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
 
    //Stop the traffic monitor timer
    if ( VOS_TIMER_STATE_RUNNING ==
@@ -6056,7 +6062,7 @@ int hdd_wlan_startup(struct device *dev )
          wlan_hdd_get_intf_addr(pHddCtx), FALSE );
      if (pAdapter != NULL)
      {
-         if (pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated && !(pHddCtx->cfg_ini->intfMacAddr[0].bytes[0] &= 0x02))
+         if ( pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated )
          {
                vos_mem_copy( pHddCtx->p2pDeviceAddress.bytes,
                        pHddCtx->cfg_ini->intfMacAddr[0].bytes,
@@ -7130,7 +7136,7 @@ int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter)
 {
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     hdd_scaninfo_t *pScanInfo = NULL;
-    int status;
+    int status = 0;
 
     pScanInfo = &pHddCtx->scan_info;
     if (pScanInfo->mScanPending)

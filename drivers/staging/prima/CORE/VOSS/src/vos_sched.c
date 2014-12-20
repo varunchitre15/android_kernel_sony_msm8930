@@ -85,7 +85,7 @@
 /* MAX iteration count to wait for Entry point to exit before
  * we proceed with SSR in WD Thread
  */
-#define MAX_SSR_WAIT_ITERATIONS 200
+#define MAX_SSR_WAIT_ITERATIONS 20
 
 static atomic_t ssr_protect_entry_count;
 
@@ -786,8 +786,7 @@ VosWDThread
         if(!pWdContext->resetInProgress)
         {
           VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
-          "%s: Do WLAN re-init only when it is shutdown !!",__func__);
-          break;
+          "%s: Trying to do WLAN re-init when it is not shutdown !!",__func__);
         }
         vosStatus = hdd_wlan_re_init();
 
@@ -1865,7 +1864,15 @@ VOS_STATUS vos_watchdog_wlan_shutdown(void)
         /* Release the lock here */
         spin_unlock(&gpVosWatchdogContext->wdLock);
         return VOS_STATUS_E_FAILURE;
-    }
+    } 
+
+    /* Set the flags so that all future CMD53 and Wext commands get blocked right away */
+    vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+    vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
+    pHddCtx->isLogpInProgress = TRUE;
+
+    /* Release the lock here */
+    spin_unlock(&gpVosWatchdogContext->wdLock);
 
     if (pHddCtx->isLoadUnloadInProgress)
     {
@@ -1875,18 +1882,8 @@ VOS_STATUS vos_watchdog_wlan_shutdown(void)
         /* wcnss has crashed, and SSR has alredy been started by Kernel driver.
          * So disable SSR from WLAN driver */
         hdd_set_ssr_required( HDD_SSR_DISABLED );
-        /* Release the lock here before returning */
-        spin_unlock(&gpVosWatchdogContext->wdLock);
         return VOS_STATUS_E_FAILURE;
     }
-    /* Set the flags so that all commands from userspace get blocked right away */
-    vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, TRUE);
-    vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
-    pHddCtx->isLogpInProgress = TRUE;
-
-    /* Release the lock here */
-    spin_unlock(&gpVosWatchdogContext->wdLock);
-
     /* Update Riva Reset Statistics */
     pHddCtx->hddRivaResetStats++;
 #ifdef CONFIG_HAS_EARLYSUSPEND

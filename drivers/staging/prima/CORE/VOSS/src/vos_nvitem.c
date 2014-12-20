@@ -538,9 +538,9 @@ VOS_STATUS vos_nv_open(void)
         {
             pnvEFSTable->nvValidityBitmap = DEFAULT_NV_VALIDITY_BITMAP;
             VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
-                      "Size  mismatch INVALID NV FILE %d %d!!!",
+                      "!!!WARNING: INVALID NV FILE, DRIVER IS USING DEFAULT CAL VALUES %d %d!!!",
                       nvReadBufSize, bufSize);
-            return VOS_STATUS_E_FAILURE;
+            return VOS_STATUS_SUCCESS;
         }
 
        /* Version mismatch */
