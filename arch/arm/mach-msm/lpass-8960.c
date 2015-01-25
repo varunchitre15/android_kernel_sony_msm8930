@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,6 +34,25 @@
 #include "smd_private.h"
 #include "ramdump.h"
 #include "sysmon.h"
+
+#include <mach/msm_iomap.h>
+extern long system_flag;
+#ifdef CONFIG_CCI_KLOG
+extern long* powerpt;
+extern long* unknowflag;
+extern long* backupcrashflag;
+#endif
+extern void set_warmboot(void);
+extern void *restart_reason;
+#define CONFIG_WARMBOOT_CRASH       0xC0DEDEAD
+#define CONFIG_WARMBOOT_NONE        0x00000000
+#define CONFIG_WARMBOOT_NORMAL     	0x77665501
+
+
+#ifdef CONFIG_CCI_KLOG
+#include <linux/cciklog.h>
+#endif // #ifdef CONFIG_CCI_KLOG
+
 
 #define SCM_Q6_NMI_CMD                  0x1
 #define MODULE_NAME			"lpass_8960"
@@ -98,6 +118,14 @@ static void lpass_log_failure_reason(void)
 	char buffer[MAX_BUF_SIZE];
 	unsigned size;
 
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+	set_fault_state(0x5, -1, "lpass");
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
+
 	reason = smem_get_entry(SMEM_SSR_REASON_LPASS0, &size);
 
 	if (!reason) {
@@ -129,6 +157,22 @@ static void lpass_fatal_fn(struct work_struct *work)
 	set_ssr_magic_number("lpass");
 	msm_set_restart_mode(0x6d634130);
 #endif
+	if((inactive == system_flag) || (normalreboot == system_flag) || (adloadmode == system_flag) ||(poweroff == system_flag))
+		system_flag = lpassfatal;
+#ifdef CONFIG_CCI_KLOG		
+	*powerpt = (POWERONOFFRECORD + system_flag);
+	*unknowflag = 0;
+	*backupcrashflag = 0;
+	
+	set_warmboot();
+#ifdef CCI_KLOG_ALLOW_FORCE_PANIC			
+	__raw_writel(CONFIG_WARMBOOT_CRASH, restart_reason);
+#else
+	__raw_writel(CONFIG_WARMBOOT_NORMAL, restart_reason);
+	*backupcrashflag = CONFIG_WARMBOOT_CRASH;
+#endif
+#endif	
+	mb();
 	panic(MODULE_NAME ": Resetting the SoC");
 }
 
@@ -148,6 +192,22 @@ static void lpass_smsm_state_cb(void *data, uint32_t old_state,
 		set_ssr_magic_number("lpass");
 		msm_set_restart_mode(0x6d634130);
 #endif
+	    if((inactive == system_flag) || (normalreboot == system_flag) || (adloadmode == system_flag) ||(poweroff == system_flag))
+		    system_flag = lpassfatal;
+#ifdef CONFIG_CCI_KLOG			
+	    *powerpt = (POWERONOFFRECORD + system_flag);
+		*unknowflag = 0;
+		*backupcrashflag = 0;
+	
+		set_warmboot();
+#ifdef CCI_KLOG_ALLOW_FORCE_PANIC			
+		__raw_writel(CONFIG_WARMBOOT_CRASH, restart_reason);
+#else
+		__raw_writel(CONFIG_WARMBOOT_NORMAL, restart_reason);
+		*backupcrashflag = CONFIG_WARMBOOT_CRASH;
+#endif
+#endif	
+		mb();
 		panic(MODULE_NAME ": Resetting the SoC");
 	}
 }

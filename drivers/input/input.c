@@ -595,11 +595,16 @@ static void input_dev_release_keys(struct input_dev *dev)
 		for (code = 0; code <= KEY_MAX; code++) {
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
+			    //1227 - for camera key
+			    if(code != 766 && code != 528 )
 				input_pass_event(dev, EV_KEY, code, 0);
+				 }
 			}
-		}
+		 //1227 - for camera key
+		 if(code != 766 && code != 528 )
 		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
+
 }
 
 /*

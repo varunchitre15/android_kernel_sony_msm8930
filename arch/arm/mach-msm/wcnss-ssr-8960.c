@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,8 +29,29 @@
 #include "smd_private.h"
 #include "ramdump.h"
 
+
+#ifdef CONFIG_CCI_KLOG
+#include <linux/cciklog.h>
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 #define MODULE_NAME			"wcnss_8960"
 #define MAX_BUF_SIZE			0x51
+
+#include <mach/subsystem_restart.h>
+#include <mach/msm_iomap.h>
+#include <linux/io.h>
+extern long system_flag;
+#ifdef CONFIG_CCI_KLOG
+extern long* powerpt;
+extern long* unknowflag;
+extern long* backupcrashflag;
+#endif
+extern void set_warmboot(void);
+extern void *restart_reason;
+#define CONFIG_WARMBOOT_CRASH       0xC0DEDEAD
+#define CONFIG_WARMBOOT_NONE        0x00000000
+#define CONFIG_WARMBOOT_NORMAL     	0x77665501
 
 static struct delayed_work cancel_vote_work;
 static void *riva_ramdump_dev;
@@ -45,6 +67,14 @@ static void smsm_state_cb_hdlr(void *data, uint32_t old_state,
 	char buffer[MAX_BUF_SIZE];
 	unsigned smem_reset_size;
 	unsigned size;
+
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+	set_fault_state(0x5, -1, "riva");
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
 
 	riva_crash = true;
 
@@ -62,7 +92,25 @@ static void smsm_state_cb_hdlr(void *data, uint32_t old_state,
 	}
 
 	if (!enable_riva_ssr)
+	{
+	    if((inactive == system_flag) || (normalreboot == system_flag) || (adloadmode == system_flag) ||(poweroff == system_flag))
+		    system_flag = rivafatal;
+#ifdef CONFIG_CCI_KLOG			
+	    *powerpt = (POWERONOFFRECORD + system_flag);
+		*unknowflag = 0;
+		*backupcrashflag = 0;
+	
+		set_warmboot();
+#ifdef CCI_KLOG_ALLOW_FORCE_PANIC			
+		__raw_writel(CONFIG_WARMBOOT_CRASH, restart_reason);
+#else
+		__raw_writel(CONFIG_WARMBOOT_NORMAL, restart_reason);
+		*backupcrashflag = CONFIG_WARMBOOT_CRASH;
+#endif
+#endif	
+		mb();
 		panic(MODULE_NAME ": SMSM reset request received from Riva");
+	}
 
 	smem_reset_reason = smem_get_entry(SMEM_SSR_REASON_WCNSS0,
 			&smem_reset_size);
@@ -99,8 +147,25 @@ static irqreturn_t riva_wdog_bite_irq_hdlr(int irq, void *dev_id)
 	}
 
 	if (!enable_riva_ssr)
+	{
+	    if((inactive == system_flag) || (normalreboot == system_flag) || (adloadmode == system_flag) ||(poweroff == system_flag))
+		    system_flag = rivafatal;
+#ifdef CONFIG_CCI_KLOG			
+	    *powerpt = (POWERONOFFRECORD + system_flag);
+		*unknowflag = 0;
+		*backupcrashflag = 0;
+		
+		set_warmboot();
+#ifdef CCI_KLOG_ALLOW_FORCE_PANIC			
+		__raw_writel(CONFIG_WARMBOOT_CRASH, restart_reason);
+#else
+		__raw_writel(CONFIG_WARMBOOT_NORMAL, restart_reason);
+		*backupcrashflag = CONFIG_WARMBOOT_CRASH;
+#endif
+#endif		
+		mb();
 		panic(MODULE_NAME ": Watchdog bite received from Riva");
-
+	}
 	ss_restart_inprogress = true;
 	subsystem_restart_dev(riva_8960_dev);
 

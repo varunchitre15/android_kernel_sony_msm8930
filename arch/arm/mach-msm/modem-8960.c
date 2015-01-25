@@ -33,6 +33,12 @@
 #include "modem_notifier.h"
 #include "ramdump.h"
 
+
+#ifdef CONFIG_CCI_KLOG
+#include <linux/cciklog.h>
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 static int crash_shutdown;
 
 static struct subsys_device *modem_8960_dev;
@@ -43,6 +49,14 @@ static void log_modem_sfr(void)
 {
 	u32 size;
 	char *smem_reason, reason[MAX_SSR_REASON_LEN];
+
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+	set_fault_state(0x5, -1, "modem");
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
 
 	smem_reason = smem_get_entry(SMEM_SSR_REASON_MSS0, &size);
 	if (!smem_reason || !size) {

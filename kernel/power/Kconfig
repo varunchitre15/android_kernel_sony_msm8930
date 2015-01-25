@@ -204,6 +204,86 @@ config PM_ADVANCED_DEBUG
 	fields of device objects from user space.  If you are not a kernel
 	developer interested in debugging/testing Power Management, say "no".
 
+config CCI_PM_LOG
+	bool "CCI power management log"
+	depends on PM_DEBUG
+	default y
+	help
+	  This option enables Power Management logs which added by CCI.
+
+config CCI_PM_WAKEUP_LOG
+	bool "Wakeup log"
+	depends on CCI_PM_LOG
+	default y
+	help
+	  This option enables wakeup logs (wakeup reason, wakeup source, etc.) which added by CCI.
+
+config CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+	bool "Platform suspend/resume log"
+	depends on CCI_PM_LOG
+	default y
+	help
+	  This option enables platform suspend/resume logs which added by CCI.
+
+config CCI_PM_EARLYSUSPEND_LATERESUME_LOG
+	bool "Early suspend/late resume log"
+	depends on CCI_PM_LOG && EARLYSUSPEND
+	default y
+	help
+	  This option enables early suspend/late resume logs which added by CCI.
+
+config CCI_PM_WAKELOCK_LOG
+	bool "Wakelock log"
+	depends on CCI_PM_LOG && WAKELOCK
+	default y
+	help
+	  This option enables wakelock logs which added by CCI.
+
+config CCI_PM_ACTIVE_WAKELOCK_LOG_PERIOD
+	int "Print active wakelock log"
+	range 1 10
+	depends on CCI_PM_WAKELOCK_LOG
+	default 1
+	help
+	  This option configures the print period (seconds) of the CCI active wakelock log.
+	  When wake_lock and wake_unlock have been called, the we will call print_active_locks() and record the timestamp.
+	  The timestamp will be compared when they have been called next time.
+
+config CCI_PM_SMD_RPC_LOG
+	bool "SMD RPC log"
+	depends on CCI_PM_LOG
+	default y
+	help
+	  This option enables SMD RPC logs which added by CCI.
+
+config CCI_PM_SMD_SEND_RPC_CALL_LOG
+	bool "SMD send RPC call log"
+	depends on CCI_PM_SMD_RPC_LOG
+	default n
+	help
+	  This option enables SMD sending RPC call logs which added by CCI.
+
+config CCI_PM_SMD_SEND_RPC_REPLY_LOG
+	bool "SMD send RPC reply log"
+	depends on CCI_PM_SMD_RPC_LOG
+	default n
+	help
+	  This option enables SMD sending RPC reply logs which added by CCI.
+
+config CCI_PM_SMD_RECEIVE_RPC_CALL_LOG
+	bool "SMD receive RPC call log"
+	depends on CCI_PM_SMD_RPC_LOG
+	default y
+	help
+	  This option enables SMD receiving RPC call logs which added by CCI.
+
+config CCI_PM_SMD_RECEIVE_RPC_REPLY_LOG
+	bool "SMD receive RPC reply log"
+	depends on CCI_PM_SMD_RPC_LOG
+	default n
+	help
+	  This option enables SMD receiving RPC reply logs which added by CCI.
+
 config PM_TEST_SUSPEND
 	bool "Test suspend/resume and wakealarm during bootup"
 	depends on SUSPEND && PM_DEBUG && RTC_CLASS=y

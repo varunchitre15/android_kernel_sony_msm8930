@@ -63,6 +63,14 @@ extern struct platform_device msm8960_device_uart_gsbi8;
 extern struct platform_device msm8930_device_uart_gsbi10;
 extern struct platform_device msm8930_device_uart_gsbi11;
 extern struct platform_device msm8960_device_ssbi_pmic;
+
+#if 1
+//
+// , 20120708, [ ] Porting sensor. GSBI_1 config
+//
+extern struct platform_device msm8960_device_qup_i2c_gsbi1;
+#endif
+
 extern struct platform_device msm8960_device_qup_i2c_gsbi3;
 extern struct platform_device msm8960_device_qup_i2c_gsbi4;
 extern struct platform_device msm8960_device_qup_i2c_gsbi8;

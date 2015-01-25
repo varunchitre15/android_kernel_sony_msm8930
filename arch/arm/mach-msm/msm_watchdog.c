@@ -1,4 +1,5 @@
 /* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,7 +34,7 @@
 #include <mach/socinfo.h>
 #include "msm_watchdog.h"
 #include "timer.h"
-
+#include <linux/ccistuff.h>
 #define MODULE_NAME "msm_watchdog"
 
 #define TCSR_WDT_CFG	0x30
@@ -263,7 +264,14 @@ void pet_watchdog(void)
 	slack = ((bark_time*WDT_HZ)/1000) - slack;
 	if (slack < min_slack_ticks)
 		min_slack_ticks = slack;
+#ifdef CCI_KLOG_ALLOW_FORCE_PANIC
+	if(stopwatchdog)		
 	__raw_writel(1, msm_wdt_base + WDT_RST);
+	else
+		printk("pet_watchdog stop watchdog:\n");
+#else
+	__raw_writel(1, msm_wdt_base + WDT_RST);
+#endif
 	time_ns = sched_clock();
 	slack_ns = (last_pet + bark_time_ns) - time_ns;
 	if (slack_ns < min_slack_ns)

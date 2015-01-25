@@ -178,6 +178,14 @@ enum v4l2_cid_private_tavarua_t {
 	V4L2_CID_PRIVATE_SPUR_SELECTION,
 	V4L2_CID_PRIVATE_UPDATE_SPUR_TABLE,
 	V4L2_CID_PRIVATE_VALID_CHANNEL,
+	V4L2_CID_PRIVATE_AF_RMSSI_TH, /* sync from radio-iris.h , only use in IRIS */
+	V4L2_CID_PRIVATE_AF_RMSSI_SAMPLES, /* sync from radio-iris.h , only use in IRIS */
+	V4L2_CID_PRIVATE_GOOD_CH_RMSSI_TH, /* sync from radio-iris.h , only use in IRIS */
+	V4L2_CID_PRIVATE_SRCHALGOTYPE, /* sync from radio-iris.h , only use in IRIS */
+	V4L2_CID_PRIVATE_CF0TH12, /* sync from radio-iris.h , only use in IRIS */
+	V4L2_CID_PRIVATE_SINRFIRSTSTAGE, /* sync from radio-iris.h , only use in IRIS */
+	V4L2_CID_PRIVATE_RMSSIFIRSTSTAGE, /* sync from radio-iris.h , only use in IRIS */
+	V4L2_CID_PRIVATE_RXREPEATCOUNT,/* sync from radio-iris.h , only use in IRIS */
 
 };
 
@@ -188,6 +196,14 @@ enum tavarua_buf_t {
 	TAVARUA_BUF_PS_RDS,
 	TAVARUA_BUF_RAW_RDS,
 	TAVARUA_BUF_AF_LIST,
+	TAVARUA_BUF_PEEK, /* sync from radio-iris.h , only use in IRIS */
+	TAVARUA_BUF_SSBI_PEEK, /* sync from radio-iris.h , only use in IRIS */
+	TAVARUA_BUF_RDS_CNTRS, /* sync from radio-iris.h , only use in IRIS */
+	TAVARUA_BUF_RD_DEFAULT, /* sync from radio-iris.h , only use in IRIS */
+	TAVARUA_BUF_CAL_DATA, /* sync from radio-iris.h , only use in IRIS */
+	TAVARUA_BUF_RT_PLUS, /* sync from radio-iris.h , only use in IRIS */
+	TAVARUA_BUF_ERT, /* sync from radio-iris.h , only use in IRIS */
+	TAVARUA_BUF_EVENTS_CCI, /* sync from radio-iris.h , only use in IRIS */
 	TAVARUA_BUF_MAX
 };
 

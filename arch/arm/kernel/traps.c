@@ -47,6 +47,15 @@ static int first_die = 1;
 #endif
 void *vectors_page;
 
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+extern int get_fault_state(void);
+extern void set_fault_state(int level, int type, const char* msg);
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
+
 #ifdef CONFIG_DEBUG_USER
 unsigned int user_debug;
 
@@ -67,6 +76,19 @@ void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long
 	if (first_call_chain)
 		set_crash_store_enable();
 #endif
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+	int fault_state = get_fault_state();
+
+	if(fault_state > 0 && (fault_state & 0x10) == 0)
+	{
+		printk(KERN_ALERT "[<%08lx>] (%pS) from [<%08lx>] (%pS)\n", where, (void *)where, from, (void *)from);
+	}
+	else
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
 	printk("[<%08lx>] (%pS) from [<%08lx>] (%pS)\n", where, (void *)where, from, (void *)from);
 #ifdef CONFIG_LGE_CRASH_HANDLER
 	set_crash_store_disable();
@@ -301,6 +323,14 @@ void die(const char *str, struct pt_regs *regs, int err)
 	struct thread_info *thread = current_thread_info();
 	int ret;
 	enum bug_trap_type bug_type = BUG_TRAP_TYPE_NONE;
+
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+	set_fault_state(0x2, err, str);
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
 
 	oops_enter();
 

@@ -514,6 +514,11 @@ int __init arm_add_memory(phys_addr_t start, unsigned long size)
 {
 	struct membank *bank = &meminfo.bank[meminfo.nr_banks];
 
+
+#ifdef CONFIG_CCI_KLOG
+	printk("arm_add_memory(%u):try start=0x%X, size=0x%lX\n", meminfo.nr_banks, start, size);
+#endif // #ifdef CONFIG_CCI_KLOG
+
 	if (meminfo.nr_banks >= NR_BANKS) {
 		printk(KERN_CRIT "NR_BANKS too low, "
 			"ignoring memory at 0x%08llx\n", (long long)start);
@@ -525,6 +530,19 @@ int __init arm_add_memory(phys_addr_t start, unsigned long size)
 	 * Size is appropriately rounded down, start is rounded up.
 	 */
 	size -= start & ~PAGE_MASK;
+
+#ifdef CONFIG_CCI_KLOG
+	if(start == (phys_addr_t)CCI_KLOG_START_ADDR_PHYSICAL)//top of a bank
+	{
+		start += CCI_KLOG_SIZE;
+		size -= CCI_KLOG_SIZE;
+	}
+	else if(start + size - (phys_addr_t)CCI_KLOG_SIZE == (phys_addr_t)CCI_KLOG_START_ADDR_PHYSICAL)//bottom of a bank
+	{
+		size -= CCI_KLOG_SIZE;
+	}
+#endif // #ifdef CONFIG_CCI_KLOG
+
 	bank->start = PAGE_ALIGN(start);
 
 #ifndef CONFIG_LPAE
@@ -541,6 +559,11 @@ int __init arm_add_memory(phys_addr_t start, unsigned long size)
 #endif
 
 	bank->size = size & PAGE_MASK;
+
+
+#ifdef CONFIG_CCI_KLOG
+	printk("arm_add_memory(%u):set start=0x%X, size=0x%lX\n", meminfo.nr_banks, start, size);
+#endif // #ifdef CONFIG_CCI_KLOG
 
 	/*
 	 * Check whether this memory region has non-zero size or
@@ -669,7 +692,29 @@ __tagtable(ATAG_CORE, parse_tag_core);
 
 static int __init parse_tag_mem32(const struct tag *tag)
 {
+
+#ifdef CONFIG_CCI_KLOG
+	int ret = 0;
+
+	printk("parse_tag_mem32():start=0x%X, size=0x%X\n", tag->u.mem.start, tag->u.mem.size);
+	if(tag->u.mem.start < (phys_addr_t)CCI_KLOG_START_ADDR_PHYSICAL && tag->u.mem.start + tag->u.mem.size > (phys_addr_t)CCI_KLOG_START_ADDR_PHYSICAL + (phys_addr_t)CCI_KLOG_SIZE)
+	{
+		ret = arm_add_memory(tag->u.mem.start, (phys_addr_t)CCI_KLOG_START_ADDR_PHYSICAL - tag->u.mem.start);
+		if(ret == 0)
+		{
+			ret = arm_add_memory((phys_addr_t)CCI_KLOG_START_ADDR_PHYSICAL + (phys_addr_t)CCI_KLOG_SIZE, tag->u.mem.start + tag->u.mem.size - (phys_addr_t)CCI_KLOG_START_ADDR_PHYSICAL - (phys_addr_t)CCI_KLOG_SIZE);
+		}
+	}
+	else
+	{
+		ret = arm_add_memory(tag->u.mem.start, tag->u.mem.size);
+	}
+
+	return ret;
+#else // #ifdef CONFIG_CCI_KLOG
 	return arm_add_memory(tag->u.mem.start, tag->u.mem.size);
+#endif // #ifdef CONFIG_CCI_KLOG
+
 }
 
 __tagtable(ATAG_MEM, parse_tag_mem32);

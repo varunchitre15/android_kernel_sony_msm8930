@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2005 John Lenz <lenz@cs.wisc.edu>
  * Copyright (C) 2005 Richard Purdie <rpurdie@openedhand.com>
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -28,11 +29,42 @@ enum led_brightness {
 	LED_FULL	= 255,
 };
 
+enum led_op_mode {
+	mode_1 = 1, //LED blink
+};
+
+enum led_testbrightness {
+	test_brightness_OFF = 0,
+};
+
+enum led_op_onms {
+	blink_onMS = 0,
+};
+enum led_op_offms {
+	blink_offMS = 0,
+};
+
+enum led_tunebrightness {
+	LED_tune_OFF	= 0,
+	LED_tune_FULL	= 255,
+};
+
+enum led_batpa {
+    LED_PA1 = 1,
+	LED_PA2 = 2,
+};
+
 struct led_classdev {
 	const char		*name;
 	int			 brightness;
 	int			 max_brightness;
 	int			 flags;
+	int          ccimode;
+	int          ccitest_brightness;
+	int          onMS;
+	int          offMS;
+	int          tunebrightness;
+	int          batpa;
 
 	/* Lower 16 bits reflect status */
 #define LED_SUSPENDED		(1 << 0)
@@ -43,8 +75,29 @@ struct led_classdev {
 	/* Must not sleep, use a workqueue if needed */
 	void		(*brightness_set)(struct led_classdev *led_cdev,
 					  enum led_brightness brightness);
+    void		(*mode_set)(struct led_classdev *led_cdev,
+					  enum led_op_mode ccimode);
+	void		(*blinkonms_set)(struct led_classdev *led_cdev,
+					  enum led_op_onms onMS);
+	void		(*blinkoffms_set)(struct led_classdev *led_cdev,
+					  enum led_op_offms offMS);
+
+	 void		(*testbrightness_set)(struct led_classdev *led_cdev,
+					  enum led_testbrightness ccitest_brightness);
+
+	void		(*tunebrightness_set)(struct led_classdev *led_cdev,
+					  enum led_tunebrightness tunebrightness);
+
+	void		(*batpa_set)(struct led_classdev *led_cdev,
+					  enum led_batpa batpa);
+	
 	/* Get LED brightness level */
 	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
+	enum led_op_mode (*mode_get)(struct led_classdev *led_cdev);
+	enum led_op_onms (*onms_get)(struct led_classdev *led_cdev);
+	enum led_op_offms (*offms_get)(struct led_classdev *led_cdev);
+	enum led_tunebrightness (*tunebrightness_get)(struct led_classdev *led_cdev);
+	enum led_batpa (*batpa_get)(struct led_classdev *led_cdev);
 
 	/*
 	 * Activate hardware accelerated blink, delays are in milliseconds

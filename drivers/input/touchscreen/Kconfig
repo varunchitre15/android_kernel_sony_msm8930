@@ -946,6 +946,34 @@ config TOUCHSCREEN_FT5X06
          To compile this driver as a module, choose M here: the
          module will be called ft5x06_ts.
 
+config TOUCHSCREEN_CYTTSP3_I2C
+       tristate "Cypress TTSP3 based touchscreens"
+       depends on I2C
+       default n
+       help
+         Say Y here if you have a Cypress TTSP3 based touchscreen.
+         TMA340 is a multi-touch screen which can report upto 10
+         touches at a time.
+
+         If unsure, say N.
+
+         To compile this driver as a module, choose M here: the
+         module will be called cyttsp3-i2c.
+
+config TOUCHSCREEN_CYTTSP3_CORE
+       tristate "core Cypress TTSP Gen3 driver modules"
+       depends on I2C
+       default n
+       help
+         Say Y here if you have a core Cypress TTSP Gen3 driver modules.
+         TMA300 is a multi-touch screen which can report upto 10
+         touches at a time.
+
+         If unsure, say N.
+
+         To compile this driver as a module, choose M here: the
+         module will be called cyttsp3-core.
+
 config TOUCHSCREEN_LGE_COMMON
 	bool "LGE Touch common driver"
 	depends on I2C

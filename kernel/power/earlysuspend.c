@@ -20,6 +20,12 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 
+#ifdef CONFIG_CCI_KLOG
+#include <linux/cciklog.h>
+#include <mach/msm_iomap.h>
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 #include "power.h"
 
 enum {
@@ -27,7 +33,13 @@ enum {
 	DEBUG_SUSPEND = 1U << 2,
 	DEBUG_VERBOSE = 1U << 3,
 };
+
+#ifdef CONFIG_CCI_PM_EARLYSUSPEND_LATERESUME_LOG
+static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND;
+#else // #ifdef CONFIG_CCI_PM_EARLYSUSPEND_LATERESUME_LOG
 static int debug_mask = DEBUG_USER_STATE;
+#endif // #ifdef CONFIG_CCI_PM_EARLYSUSPEND_LATERESUME_LOG
+
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static DEFINE_MUTEX(early_suspend_lock);
@@ -70,6 +82,18 @@ void unregister_early_suspend(struct early_suspend *handler)
 }
 EXPORT_SYMBOL(unregister_early_suspend);
 
+
+#ifdef CONFIG_CCI_KLOG
+extern unsigned int resume_time;
+extern struct timespec suspend_timestamp;
+extern struct timespec resume_timestamp;
+extern int suspend_resume_state;
+
+extern void record_suspend_resume_time(int state, unsigned int time);
+extern struct timespec klog_get_kernel_clock_timestamp(void);
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 static void early_suspend(struct work_struct *work)
 {
 	struct early_suspend *pos;
@@ -91,12 +115,30 @@ static void early_suspend(struct work_struct *work)
 		goto abort;
 	}
 
+
+#ifdef CONFIG_CCI_KLOG
+	if(suspend_resume_state == 0)
+	{
+		suspend_timestamp = klog_get_kernel_clock_timestamp();
+#ifdef CCI_KLOG_DETAIL_LOG
+		kprintk("suspend_resume_state(%d):suspend_timestamp=%u.%u\n", suspend_resume_state, (unsigned int)suspend_timestamp.tv_sec, (unsigned int)suspend_timestamp.tv_nsec);
+#endif // #ifdef CCI_KLOG_DETAIL_LOG
+	}
+	suspend_resume_state = 1;
+#endif // #ifdef CONFIG_CCI_KLOG
+
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("early_suspend: call handlers\n");
 	list_for_each_entry(pos, &early_suspend_handlers, link) {
 		if (pos->suspend != NULL) {
+
+#ifdef CONFIG_CCI_PM_EARLYSUSPEND_LATERESUME_LOG
+			printk("[SUSPEND]%s():%pF (0x%X)\n", __func__, (void*)pos->suspend, (int)pos->suspend);
+#else // #ifdef CONFIG_CCI_PM_EARLYSUSPEND_LATERESUME_LOG
 			if (debug_mask & DEBUG_VERBOSE)
 				pr_info("early_suspend: calling %pf\n", pos->suspend);
+#endif // #ifdef CONFIG_CCI_PM_EARLYSUSPEND_LATERESUME_LOG
+
 			pos->suspend(pos);
 		}
 	}
@@ -116,6 +158,11 @@ static void late_resume(struct work_struct *work)
 	unsigned long irqflags;
 	int abort = 0;
 
+#ifdef CONFIG_CCI_KLOG
+	struct timespec current_timestamp;
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPENDED)
@@ -133,12 +180,36 @@ static void late_resume(struct work_struct *work)
 		pr_info("late_resume: call handlers\n");
 	list_for_each_entry_reverse(pos, &early_suspend_handlers, link) {
 		if (pos->resume != NULL) {
+
+#ifdef CONFIG_CCI_PM_EARLYSUSPEND_LATERESUME_LOG
+			printk("[RESUME]%s():%pF (0x%X)\n", __func__, (void *)pos->resume, (int)pos->resume);
+#else // #ifdef CONFIG_CCI_PM_EARLYSUSPEND_LATERESUME_LOG
 			if (debug_mask & DEBUG_VERBOSE)
 				pr_info("late_resume: calling %pf\n", pos->resume);
+#endif // #ifdef CONFIG_CCI_PM_EARLYSUSPEND_LATERESUME_LOG
+
 
 			pos->resume(pos);
 		}
 	}
+
+#ifdef CONFIG_CCI_KLOG
+	if(suspend_resume_state == 3)
+	{
+		current_timestamp = klog_get_kernel_clock_timestamp();
+#ifdef CCI_KLOG_DETAIL_LOG
+		kprintk("suspend_resume_state(%d):resume_timestamp=%u.%u\n", suspend_resume_state, (unsigned int)current_timestamp.tv_sec, (unsigned int)current_timestamp.tv_nsec);
+#endif // #ifdef CCI_KLOG_DETAIL_LOG
+		resume_timestamp.tv_sec = current_timestamp.tv_sec - resume_timestamp.tv_sec;
+		resume_time = (unsigned int)(resume_timestamp.tv_sec * 1000 + resume_timestamp.tv_nsec / 1000000);//ms
+		record_suspend_resume_time(suspend_resume_state, resume_time);
+#ifdef CCI_KLOG_DETAIL_LOG
+		kprintk("suspend_resume_state(%d):resume_time=%u\n", suspend_resume_state, resume_time);
+#endif // #ifdef CCI_KLOG_DETAIL_LOG
+	}
+	suspend_resume_state = 0;
+#endif // #ifdef CONFIG_CCI_KLOG
+
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: done\n");
 abort:

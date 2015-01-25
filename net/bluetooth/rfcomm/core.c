@@ -1336,6 +1336,12 @@ void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 
 static void rfcomm_check_accept(struct rfcomm_dlc *d)
 {
+        // to prevent NULL pointer
+        if(d == NULL) {
+                printk("rfcomm_check_accept: d==NULL");
+                return;
+        }
+
 	if (rfcomm_check_security(d)) {
 		if (d->defer_setup) {
 			set_bit(RFCOMM_DEFER_SETUP, &d->flags);

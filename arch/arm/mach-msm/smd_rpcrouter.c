@@ -52,6 +52,12 @@
 #include "smd_rpc_sym.h"
 #include "smd_private.h"
 
+
+#ifdef CONFIG_CCI_PM_SMD_RPC_LOG
+#include "../../../kernel/power/power.h"
+#endif // #ifdef CONFIG_CCI_PM_SMD_RPC_LOG
+
+
 enum {
 	SMEM_LOG = 1U << 0,
 	RTR_DBG = 1U << 1,
@@ -1555,6 +1561,14 @@ int msm_rpc_write(struct msm_rpc_endpoint *ept, void *buffer, int count)
 	}
 
 	if (rq->type == 0) {
+
+#ifdef CONFIG_CCI_PM_SMD_SEND_RPC_CALL_LOG
+	if(get_suspend_state() == PM_SUSPEND_MEM)
+	{
+		printk("[SMD]send RPC call:xid=%u, prog=0x%X, proc=0x%X\n", cpu_to_be32(rq->xid), cpu_to_be32(rq->prog), cpu_to_be32(rq->procedure));
+	}
+#endif // #ifdef CONFIG_CCI_PM_SMD_SEND_RPC_CALL_LOG
+
 		/* RPC CALL */
 		if (count < (sizeof(uint32_t) * 6)) {
 			printk(KERN_ERR
@@ -1582,6 +1596,14 @@ int msm_rpc_write(struct msm_rpc_endpoint *ept, void *buffer, int count)
 		   be32_to_cpu(rq->prog), be32_to_cpu(rq->vers),
 		   ept->dst_pid, ept->dst_cid, count);
 	} else {
+
+#ifdef CONFIG_CCI_PM_SMD_SEND_RPC_REPLY_LOG
+	if(get_suspend_state() == PM_SUSPEND_MEM)
+	{
+		printk("[SMD]send RPC reply:xid=%u\n", cpu_to_be32(rq->xid));
+	}
+#endif // #ifdef CONFIG_CCI_PM_SMD_SEND_RPC_REPLY_LOG
+
 		/* RPC REPLY */
 		reply = get_pend_reply(ept, rq->xid);
 		if (!reply) {
@@ -1877,6 +1899,14 @@ int __msm_rpc_read(struct msm_rpc_endpoint *ept,
 	*frag_ret = pkt->first;
 	rq = (void*) pkt->first->data;
 	if ((rc >= (sizeof(uint32_t) * 3)) && (rq->type == 0)) {
+
+#ifdef CONFIG_CCI_PM_SMD_RECEIVE_RPC_CALL_LOG
+	if(get_suspend_state() == PM_SUSPEND_MEM)
+	{
+		printk("[SMD]receive RPC call:xid=%u, prog=0x%X, proc=0x%X\n", cpu_to_be32(rq->xid), cpu_to_be32(rq->prog), cpu_to_be32(rq->procedure));
+	}
+#endif // #ifdef CONFIG_CCI_PM_SMD_RECEIVE_RPC_CALL_LOG
+
 		/* RPC CALL */
 		reply = get_avail_reply(ept);
 		if (!reply) {
@@ -1890,6 +1920,15 @@ int __msm_rpc_read(struct msm_rpc_endpoint *ept,
 		reply->vers = rq->vers;
 		set_pend_reply(ept, reply);
 	}
+
+#ifdef CONFIG_CCI_PM_SMD_RECEIVE_RPC_REPLY_LOG
+	else if(rc >= (sizeof(uint32_t) * 3))
+	if(get_suspend_state() == PM_SUSPEND_MEM)
+	{
+		printk("[SMD]receive RPC reply:xid=%u\n", cpu_to_be32(rq->xid));
+	}
+#endif // #ifdef CONFIG_CCI_PM_SMD_RECEIVE_RPC_REPLY_LOG
+
 
 	kfree(pkt);
 

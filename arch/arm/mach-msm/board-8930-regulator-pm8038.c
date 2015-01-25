@@ -63,6 +63,7 @@ VREG_CONSUMERS(L7) = {
 VREG_CONSUMERS(L8) = {
 	REGULATOR_SUPPLY("8038_l8",		NULL),
 	REGULATOR_SUPPLY("dsi_vdc",		"mipi_dsi.1"),
+    REGULATOR_SUPPLY("cam_vdc",     "4-0020"),//20120809
 };
 VREG_CONSUMERS(L9) = {
 	REGULATOR_SUPPLY("8038_l9",		NULL),
@@ -77,6 +78,10 @@ VREG_CONSUMERS(L9) = {
 	REGULATOR_SUPPLY("cam_vaf",		"4-0048"),
 	REGULATOR_SUPPLY("cam_vana",            "4-0020"),
 	REGULATOR_SUPPLY("cam_vaf",             "4-0020"),
+	//S:Andy_li 20120708 P/L sensor porting
+	REGULATOR_SUPPLY("Vdd",      "12-0039"),
+	REGULATOR_SUPPLY("Vled",       "12-0039"),
+	//E:Andy_li 20120708 P/L sensor porting
 /* Regulators for 8930 QRD SGLTE EVT */
 	REGULATOR_SUPPLY("cam_vana",		"8-001a"),
 	REGULATOR_SUPPLY("cam_vana",		"8-006c"),
@@ -93,6 +98,7 @@ VREG_CONSUMERS(L9) = {
 	REGULATOR_SUPPLY("vdd",			"12-0018"),
 	REGULATOR_SUPPLY("vdd",			"12-0068"),
 	REGULATOR_SUPPLY("CDC_VDDA_A_L9_2P85V",	"sitar1p1-slim"),
+    REGULATOR_SUPPLY("cam_vana",    "4-0078"),//20120809
 };
 VREG_CONSUMERS(L10) = {
 	REGULATOR_SUPPLY("8038_l10",		NULL),
@@ -232,6 +238,7 @@ VREG_CONSUMERS(LVS1) = {
 	REGULATOR_SUPPLY("cam_vio",		"8-0020"),
 	REGULATOR_SUPPLY("cam_vio",		"8-0036"),
 	REGULATOR_SUPPLY("cam_vio",		"8-0010"),
+    REGULATOR_SUPPLY("cam_vio",             "4-0078"),//20120809
 };
 VREG_CONSUMERS(LVS2) = {
 	REGULATOR_SUPPLY("8038_lvs2",		NULL),
@@ -531,7 +538,11 @@ msm8930_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L5,	 0, 1, 0, 2950000, 2950000, NULL,      0, 0),
 	RPM_LDO(L6,	 0, 1, 0, 2950000, 2950000, NULL,      0, 0),
 	RPM_LDO(L7,	 0, 1, 0, 2050000, 2050000, "8038_s4", 0, 0),
+#ifdef ORG_VER	//20120809
 	RPM_LDO(L8,	 0, 1, 0, 2800000, 2800000, NULL,      0, 0),
+#else
+    RPM_LDO(L8,  0, 1, 0, 1050000, 1050000, NULL,      0, 0),//20130118//20130204
+#endif //ORG_VER
 	RPM_LDO(L9,	 0, 1, 0, 2850000, 2850000, NULL,      0, 0),
 	RPM_LDO(L10,	 0, 1, 0, 2900000, 2900000, NULL,      0, 0),
 	RPM_LDO(L11,	 1, 1, 0, 1800000, 1800000, "8038_s4", 10000, 10000),

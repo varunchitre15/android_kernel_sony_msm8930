@@ -641,6 +641,21 @@ static int pm8xxx_lpg_pwm_write(struct pwm_device *pwm, int start, int end)
 {
 	int	i, rc;
 
+	//Reset PWM register
+	u8 X=0;
+	rc = pm8xxx_readb(pwm->chip->dev->parent, 0x14D, &X); 
+	if (rc) { 
+		pr_err("QUALCOMM, c_kamalw: FAILED pm8xxx_readb(): rc=%d (PWM Ctl[7])\n", rc); 
+		return rc; 
+	} 
+	X&=~0x04; 
+	 
+	rc = pm8xxx_writeb(pwm->chip->dev->parent, 0x14D, X); 
+	if (rc) { 
+		pr_err("QUALCOMM, c_kamalw: FAILED pm8xxx_writeb(): rc=%d (PWM Ctl[7])\n", rc); 
+		return rc; 
+	} 	
+
 	/* Write in reverse way so 0 would be the last */
 	for (i = end - 1; i >= start; i--) {
 		rc = pm8xxx_writeb(pwm->chip->dev->parent,

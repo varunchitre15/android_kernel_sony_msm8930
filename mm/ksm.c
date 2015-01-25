@@ -1,4 +1,5 @@
 /*
+ *Copyright (C) 2012 Sony Mobile Communications AB.
  * Memory merging support.
  *
  * This code enables dynamic sharing of identical pages found in different
@@ -184,10 +185,10 @@ static unsigned long ksm_pages_unshared;
 static unsigned long ksm_rmap_items;
 
 /* Number of pages ksmd should scan in one batch */
-static unsigned int ksm_thread_pages_to_scan = 100;
+static unsigned int ksm_thread_pages_to_scan = 600;	//ori=>100
 
 /* Milliseconds ksmd should sleep between batches */
-static unsigned int ksm_thread_sleep_millisecs = 20;
+static unsigned int ksm_thread_sleep_millisecs = 3000;	//ori=>20
 
 #define KSM_RUN_STOP	0
 #define KSM_RUN_MERGE	1

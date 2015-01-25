@@ -1,0 +1,6 @@
+#
+# Copyright (C) 2012 Sony Mobile Communications AB.
+#
+config CCI_STUFF
+	tristate "CCI stuff"
+	default y

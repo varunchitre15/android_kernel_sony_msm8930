@@ -190,6 +190,11 @@ struct pm8921_charger_platform_data {
 	int				btc_panic_if_cant_stop_chg;
 	int				stop_chg_upon_expiry;
 	bool				disable_chg_rmvl_wrkarnd;
+	//S:LO
+	unsigned chg_time_out_extra;
+	unsigned int            safety_time_ac;
+	unsigned int            safety_time_usb;
+	//E:LO
 };
 
 enum pm8921_charger_source {

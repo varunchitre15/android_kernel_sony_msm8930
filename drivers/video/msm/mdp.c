@@ -3103,6 +3103,7 @@ static int mdp_probe(struct platform_device *pdev)
 #ifndef CONFIG_FB_MSM_MDP303
 		mfd->dma_fnc = mdp4_dsi_cmd_overlay;
 		mipi = &mfd->panel_info.mipi;
+		mdp4_dsi_rdptr_init(0);//Taylor--20121220
 		mfd->vsync_init = mdp4_dsi_rdptr_init;
 		mfd->vsync_show = mdp4_dsi_cmd_show_event;
 		if (mfd->panel_info.pdest == DISPLAY_1) {

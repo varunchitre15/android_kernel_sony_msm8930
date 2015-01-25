@@ -48,6 +48,12 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/printk.h>
 
+
+#ifdef CONFIG_CCI_KLOG
+#include <linux/cciklog.h>
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 /*
  * Architectures can override it:
  */
@@ -714,8 +720,23 @@ static void call_console_drivers(unsigned start, unsigned end)
 	_call_console_drivers(start_print, end, msg_level);
 }
 
+
+#ifdef CONFIG_CCI_KLOG
+#define emit_log_char(c) emit_log_char_extend(c, 0)
+static void emit_log_char_extend(char c, int skip)
+#else // #ifdef CONFIG_CCI_KLOG
 static void emit_log_char(char c)
+#endif // #ifdef CONFIG_CCI_KLOG
+
 {
+
+#ifdef CONFIG_CCI_KLOG
+	if(skip == 0)
+	{
+		cklc_append_kernel_raw_char(c);
+	}
+#endif // #ifdef CONFIG_CCI_KLOG
+
 	LOG_BUF(log_end) = c;
 	log_end++;
 	if (log_end - log_start > log_buf_len)
@@ -968,6 +989,14 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	 */
 	for (; *p; p++) {
 		if (new_text_line) {
+
+#ifdef CONFIG_CCI_KLOG
+#if CCI_KLOG_CRASH_SIZE
+			set_kernel_log_level(current_log_level);
+#endif // #if CCI_KLOG_CRASH_SIZE
+			cklc_append_time_header(KLOG_KERNEL);
+#endif // #ifdef CONFIG_CCI_KLOG
+
 			new_text_line = 0;
 
 			if (plen) {
@@ -999,7 +1028,13 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 						nanosec_rem / 1000);
 
 				for (tp = tbuf; tp < tbuf + tlen; tp++)
+
+#ifdef CONFIG_CCI_KLOG
+					emit_log_char_extend(*tp, 1);
+#else // #ifdef CONFIG_CCI_KLOG
 					emit_log_char(*tp);
+#endif // #ifdef CONFIG_CCI_KLOG
+
 				printed_len += tlen;
 			}
 
@@ -1391,7 +1426,16 @@ again:
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
 
 	if (retry && console_trylock())
+
+#ifdef BSP_ORIGINAL
 		goto again;
+#else // #ifdef BSP_ORIGINAL
+	{
+		retry = 0;
+		goto again;
+	}
+#endif // #ifdef BSP_ORIGINAL
+
 
 	if (wake_klogd)
 		wake_up_klogd();

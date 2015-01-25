@@ -50,7 +50,7 @@ static char utf_8_flag;
 static char rt_ert_flag;
 static char formatting_dir;
 static DEFINE_MUTEX(iris_fm);
-
+static unsigned char interrupt_event[STD_BUF_SIZE];
 module_param(rds_buf, uint, 0);
 MODULE_PARM_DESC(rds_buf, "RDS buffer entries: *100*");
 
@@ -2387,7 +2387,8 @@ static inline void hci_ev_radio_text(struct radio_hci_dev *hdev,
 
 	while ((skb->data[len+RDS_OFFSET] != 0x0d) && (len < RX_RT_DATA_LENGTH))
 		len++;
-	data = kmalloc(len+RDS_OFFSET, GFP_ATOMIC);
+	//data = kmalloc(len+RDS_OFFSET, GFP_ATOMIC);
+         data = kmalloc(len+RDS_OFFSET+1, GFP_ATOMIC);
 	if (!data) {
 		FMDERR("Failed to allocate memory");
 		return;
@@ -2994,6 +2995,21 @@ static int iris_vidioc_g_ext_ctrls(struct file *file, void *priv,
 			return -EFAULT;
 		retval = hci_def_data_read(&default_data_rd, radio->fm_hdev);
 		break;
+
+	case V4L2_CID_PRIVATE_IRIS_READ_INTERRUPT_EVENT:
+	       {
+		   	int len=0;
+			retval=-1;
+			data = (ctrl->controls[0]).string;
+			len=(ctrl->controls[0]).size;
+			retval = copy_to_user(data, &interrupt_event[0], len);
+			if (retval > 0) {
+				FMDERR("Failed to copy %d bytes of data\n", retval);
+				return -EAGAIN;
+			}
+		}
+		break;
+
 	default:
 		retval = -EINVAL;
 	}
@@ -3810,7 +3826,7 @@ static int iris_vidioc_s_ctrl(struct file *file, void *priv,
 		retval = hci_def_data_write(&wrd, radio->fm_hdev);
 		if (retval < 0)
 			FMDERR("set RxRePeat count failed\n");
-		break;
+		break;		
 	default:
 		retval = -EINVAL;
 	}
@@ -4052,6 +4068,7 @@ static int iris_fops_release(struct file *file)
 static int iris_vidioc_dqbuf(struct file *file, void *priv,
 				struct v4l2_buffer *buffer)
 {
+#if (0)
 	struct iris_device  *radio = video_get_drvdata(video_devdata(file));
 	enum iris_buf_t buf_type = -1;
 	unsigned char buf_fifo[STD_BUF_SIZE] = {0};
@@ -4091,6 +4108,67 @@ static int iris_vidioc_dqbuf(struct file *file, void *priv,
 	}
 
 	return retval;
+#else
+	struct iris_device  *radio = video_get_drvdata(video_devdata(file));
+	enum iris_buf_t buf_type = -1;
+        enum iris_buf_t buf_type_temp = -1;
+	unsigned char buf_fifo[STD_BUF_SIZE] = {0};
+	struct kfifo *data_fifo = NULL;
+	unsigned char *buf = NULL;
+	unsigned int len = 0, retval = -1;
+        unsigned int len_temp=sizeof(interrupt_event);	
+
+	if ((radio == NULL) || (buffer == NULL)) {
+		FMDERR("radio/buffer is NULL\n");
+		return -ENXIO;
+	}
+	buf_type = buffer->index;
+        buf_type_temp = buffer->index;
+	buf = (unsigned char *)buffer->m.userptr;
+	len = buffer->length;
+
+       if (buf_type == IRIS_BUF_EVENTS_CCI){
+	 //change to correct type
+	  buf_type=IRIS_BUF_EVENTS;
+     	}
+
+	if ((buf_type < IRIS_BUF_MAX) && (buf_type >= 0)) {
+		data_fifo = &radio->data_buf[buf_type];
+		if (buf_type == IRIS_BUF_EVENTS)
+			if (wait_event_interruptible(radio->event_queue,
+				kfifo_len(data_fifo)) < 0)
+				return -EINTR;
+	} else {
+		FMDERR("invalid buffer type\n");
+		return -EINVAL;
+	}
+        if (buf_type_temp == IRIS_BUF_EVENTS_CCI){
+	  if (len_temp <= STD_BUF_SIZE) {
+	        memset(&interrupt_event[0], 0, sizeof(interrupt_event));
+	        interrupt_event[0]=kfifo_out_locked(data_fifo, &interrupt_event[1], len_temp-1,
+					&radio->buf_lock[buf_type]);
+                 return 0;
+ 	  } else {
+		FMDERR("IRIS_BUF_EVENTS_CCI ,kfifo_out_locked can not use len more than 128\n");
+		return -EINVAL;
+	  }
+        }
+        else {
+	  if (len <= STD_BUF_SIZE) {
+		buffer->bytesused = kfifo_out_locked(data_fifo, &buf_fifo[0],
+					len, &radio->buf_lock[buf_type]);
+ 	  } else {
+		FMDERR("kfifo_out_locked can not use len more than 128\n");
+		return -EINVAL;
+	  }
+	  retval = copy_to_user(buf, &buf_fifo[0], buffer->bytesused);
+	  if (retval > 0) {
+		FMDERR("Failed to copy %d bytes of data\n", retval);
+		return -EAGAIN;
+	  }
+        }
+	return retval;
+#endif
 }
 
 static int iris_vidioc_g_fmt_type_private(struct file *file, void *priv,

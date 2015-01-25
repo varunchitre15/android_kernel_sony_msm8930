@@ -269,9 +269,9 @@ static int __devinit pm8xxx_vib_probe(struct platform_device *pdev)
 	rc = timed_output_dev_register(&vib->timed_dev);
 	if (rc < 0)
 		goto err_read_vib;
-
+#if 0
 	pm8xxx_vib_enable(&vib->timed_dev, pdata->initial_vibrate_ms);
-
+#endif
 	platform_set_drvdata(pdev, vib);
 
 	vib_dev = vib;

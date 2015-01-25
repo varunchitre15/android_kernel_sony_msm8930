@@ -171,6 +171,12 @@ struct timeval;
 extern void swsusp_show_speed(struct timeval *, struct timeval *,
 				unsigned int, char *);
 
+
+#ifdef CONFIG_CCI_PM_LOG
+#define PM_SUSPEND_BOOTING	((__force suspend_state_t) -1)
+#endif // #ifdef CONFIG_CCI_PM_LOG
+
+
 #ifdef CONFIG_SUSPEND
 /* kernel/power/suspend.c */
 extern const char *const pm_states[];

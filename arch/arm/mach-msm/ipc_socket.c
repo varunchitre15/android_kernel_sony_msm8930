@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -171,6 +172,7 @@ static int msm_ipc_router_create(struct net *net,
 {
 	struct sock *sk;
 	struct msm_ipc_port *port_ptr;
+	//void *pil; // M:LE
 
 	if (unlikely(protocol != 0)) {
 		pr_err("%s: Protocol not supported\n", __func__);
@@ -203,7 +205,9 @@ static int msm_ipc_router_create(struct net *net,
 	sock_init_data(sock, sk);
 	sk->sk_rcvtimeo = DEFAULT_RCV_TIMEO;
 
+	//pil = msm_ipc_load_default_node(); // M:LE
 	msm_ipc_sk(sk)->port = port_ptr;
+	//msm_ipc_sk(sk)->default_pil = pil; // M:LE
 
 	return 0;
 }
@@ -481,13 +485,14 @@ static int msm_ipc_router_close(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 	struct msm_ipc_port *port_ptr = msm_ipc_sk_port(sk);
-	void *pil = msm_ipc_sk(sk)->default_pil;
+	//void *pil = msm_ipc_sk(sk)->default_pil; // M:LE
 	int ret;
 
 	lock_sock(sk);
 	ret = msm_ipc_router_close_port(port_ptr);
-	if (pil)
-		msm_ipc_unload_default_node(pil);
+	//msm_ipc_unload_default_node(pil); // M:LE
+	//if (pil)
+	//	msm_ipc_unload_default_node(pil);
 	release_sock(sk);
 	sock_put(sk);
 	sock->sk = NULL;

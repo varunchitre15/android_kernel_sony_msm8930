@@ -1,4 +1,5 @@
 /* Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -48,6 +49,54 @@
 
 int diag_debug_buf_idx;
 unsigned char diag_debug_buf[1024];
+//static unsigned int buf_tbl_size = 8; /*Number of entries in table of buffers */
+
+//S:LE
+#ifndef ORG_VER
+/*CmdID for APP Handling*/
+#define DIAG_ODM_SUBCMD_ADCRead		0x10
+#define DIAG_ODM_CMD_RESET_CFC 	0x51	//M:LE
+#define DIAG_ODM_SUBCMD_BACKUP_STATUS 0x9b 
+#define DIAG_ODM_SUBCMD_CHG_STATUS 0X30
+#define DIAG_ODM_SUBCMD_FlexVersion	0x0C
+#define DIAG_ODM_SUBCMD_CCI_FTM_BSP 0X32
+#define DIAG_ODM_SUBCMD_MasterClear 0x14
+#define DIAG_ODM_SUBCMD_I2C_BATTERY_ID 0x39
+#define DIAG_ODM_SUBCMD_BT_HCI_SEND_DUT_MODE 0x47
+#define DIAG_ODM_SUBCMD_SW_VERSION 0x29
+#define DIAG_ODM_SUBCMD_CFC_PWR_OFF 	0x54
+#define DIAG_ODM_SUBCMD_CUST_CMD 0x9c
+#define DIAG_ODM_SUBCMD_CHG_SWITCH 0x2d 
+#define DIAG_ODM_SUBCMD_SIMPLE_TEST 0x5f
+#define DIAG_ODM_SUBCMD_CHG_STATUS 0X30
+#define DIAG_ODM_SUBCMD_BT_HCI_SEND_DUT_MODE 0x47
+#define DIAG_ODM_SIMPLECMD_SIM_DETECT  0x10
+#define DIAG_ODM_SUBCMD_Check_T1_T2_Android_Mode  0x09
+#define DIAG_ODM_SUBCMD_CUSTOMER_SERVICE_MODE  0x22
+
+static unsigned char FTM_APP_CMD[] = 
+{
+	DIAG_ODM_SUBCMD_CHG_STATUS,
+        DIAG_ODM_SUBCMD_CCI_FTM_BSP,
+	DIAG_ODM_SUBCMD_CUST_CMD,
+	DIAG_ODM_SUBCMD_CFC_PWR_OFF,
+	DIAG_ODM_SUBCMD_SW_VERSION,
+	DIAG_ODM_SUBCMD_I2C_BATTERY_ID,
+	DIAG_ODM_SUBCMD_MasterClear,
+	DIAG_ODM_SUBCMD_FlexVersion,
+	DIAG_ODM_SUBCMD_ADCRead,
+	DIAG_ODM_CMD_RESET_CFC, 
+	DIAG_ODM_SUBCMD_BACKUP_STATUS,
+	DIAG_ODM_SUBCMD_CHG_SWITCH,
+	DIAG_ODM_SUBCMD_SIMPLE_TEST,
+	DIAG_ODM_SUBCMD_CHG_SWITCH,
+	DIAG_ODM_SUBCMD_BT_HCI_SEND_DUT_MODE,
+	DIAG_ODM_SUBCMD_Check_T1_T2_Android_Mode,
+	DIAG_ODM_SUBCMD_CUSTOMER_SERVICE_MODE,
+};
+#endif
+//E:LE
+
 /* Number of entries in table of buffers */
 static unsigned int buf_tbl_size = 10;
 struct diag_master_table entry;
@@ -756,6 +805,14 @@ int diag_process_apps_pkt(unsigned char *buf, int len)
 			data_type = MODEM_DATA;
 	}
 
+//S:LE
+#ifndef ORG_VER
+#ifdef FTM_DEBUG_KERNEL		
+				printk(KERN_INFO "diag kernel log: buf[0]~[3] = 0x%X, 0x%X, 0x%X, 0x%X", buf[0], buf[1], buf[2], buf[3]);
+#endif
+#endif
+//E:LE
+
 	pr_debug("diag: %d %d %d", cmd_code, subsys_id, subsys_cmd_code);
 	for (i = 0; i < diag_max_reg; i++) {
 		entry = driver->table[i];
@@ -784,9 +841,60 @@ int diag_process_apps_pkt(unsigned char *buf, int len)
 						 cmd_code &&
 						 entry.
 						cmd_code_hi >= cmd_code) {
-					diag_send_data(entry, buf, len,
-								 data_type);
+						//S:LE
+    						if(cmd_code ==238)
+						{
+							int k = 0;
+							int num = sizeof(FTM_APP_CMD)/sizeof(unsigned char);
+							int cmdID = (int)(*(char*)(buf+2));
+
+							/* S:LE begin { */
+							int cmdID_simple = (int)(*(char*)(buf+5));
+							if((cmdID == DIAG_ODM_SUBCMD_SIMPLE_TEST) && (cmdID_simple == DIAG_ODM_SIMPLECMD_SIM_DETECT))
+							{
+								entry.process_id=NON_APPS_PROC;
+								entry.client_id=MODEM_DATA;
+								diag_send_data(entry, buf, len, data_type);
+								printk(KERN_INFO "diag_process_apps_pkt .. CCI FTM_CMD 0x%02x 0x%02x for MODEM handling\n", cmdID, cmdID_simple);
+								packet_type = 0;
+								
+								return 0;	
+							}
+							/* E:LE } */
+							
+							for(k = 0;k<num ;k++)
+							{
+								if (cmdID == (int)FTM_APP_CMD[k])
+								{
+									//20110704 Kevin begin
+									if(entry.process_id!=NON_APPS_PROC)
+                                    					{
+										diag_send_data(entry, buf, len, data_type);
+										#ifdef FTM_DEBUG_KERNEL										
+										printk(KERN_INFO "%s .. CCI FTM cmdID[0x%2X] for APP handling\n", __func__, cmdID);
+										#endif
 					packet_type = 0;
+
+										return 0;
+									}
+									//20110704 Kevin end
+								}
+							}
+							entry.process_id=NON_APPS_PROC;
+							entry.client_id=MODEM_DATA;
+							diag_send_data(entry, buf, len, data_type);
+							#ifdef FTM_DEBUG_KERNEL								
+							printk(KERN_INFO "%s .. CCI FTM cmdID [0x%2X] for MODEM handling\n", __func__, cmdID);
+							#endif
+							packet_type = 0;                            
+							return 0;	
+						}
+						else
+						{
+					                diag_send_data(entry, buf, len, data_type);
+							packet_type = 0;
+						}
+						//E:LE
 				}
 			}
 		}
@@ -1102,6 +1210,8 @@ int diag_process_apps_pkt(unsigned char *buf, int len)
 	}
 	/* Check for download command */
 	else if ((cpu_is_msm8x60() || chk_apps_master()) && (*buf == 0x3A)) {
+//S:LE
+#ifdef ORIGINAL_VERSION
 		/* send response back */
 		driver->apps_rsp_buf[0] = *buf;
 		encode_rsp_and_send(0);
@@ -1112,6 +1222,34 @@ int diag_process_apps_pkt(unsigned char *buf, int len)
 		kernel_restart(NULL);
 		/* Not required, represents that command isnt sent to modem */
 		return 0;
+#else
+		if(*(buf + 1) != 0xF1) {
+		/* send response back */
+		driver->apps_rsp_buf[0] = *buf;
+		encode_rsp_and_send(0);
+		msleep(5000);
+		/* call download API */
+		msm_set_restart_mode(RESTART_DLOAD);
+		printk(KERN_CRIT "diag: download mode set, Rebooting SoC..\n");
+		kernel_restart(NULL);
+		/* Not required, represents that command isnt sent to modem */
+		return 0;
+	}
+		else {
+			/* send response back */
+			driver->apps_rsp_buf[0] = *buf;
+			driver->apps_rsp_buf[1] = *(buf + 1);
+			encode_rsp_and_send(1);
+			msleep(5000);
+			/* call download API */
+			msm_set_restart_mode(RESTART_NORMAL);
+			printk(KERN_CRIT "diag: Go Rebooting SoC..\n");
+			kernel_restart(NULL);
+			/* Not required, represents that command isnt sent to modem */
+			return 0;
+		}
+#endif
+//E:LE
 	}
 	/* Check for polling for Apps only DIAG */
 	else if ((*buf == 0x4b) && (*(buf+1) == 0x32) &&

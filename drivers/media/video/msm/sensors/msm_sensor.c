@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,6 +10,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+#include <mach/gpio.h>//2012/11/06
 #include <mach/msm_bus.h>
 #include <mach/msm_bus_board.h>
 #include "msm_sensor.h"
@@ -16,7 +19,11 @@
 #include "msm.h"
 #include "msm_ispif.h"
 #include "msm_camera_i2c_mux.h"
+#include <mach/msm_xo.h>
+#include "../../../../base/base.h" //2012/07/24 
 
+int flash_on = 0;//2012/11/06
+int req_fps = 30;//2013/01/28
 /*=============================================================*/
 void msm_sensor_adjust_frame_lines1(struct msm_sensor_ctrl_t *s_ctrl)
 {
@@ -134,9 +141,11 @@ int32_t msm_sensor_write_output_settings(struct msm_sensor_ctrl_t *s_ctrl,
 	uint16_t res)
 {
 	int32_t rc = -EFAULT;
-	uint32_t fll = (s_ctrl->msm_sensor_reg->
-		output_settings[res].frame_length_lines *
-		s_ctrl->fps_divider) / Q10;
+    //B 2013/07/03 
+	//uint32_t fll = (s_ctrl->msm_sensor_reg->
+	//	output_settings[res].frame_length_lines *
+	//	s_ctrl->fps_divider) / Q10;
+    //E 2013/07/03 
 	struct msm_camera_i2c_reg_conf dim_settings[] = {
 		{s_ctrl->sensor_output_reg_addr->x_output,
 			s_ctrl->msm_sensor_reg->
@@ -148,7 +157,11 @@ int32_t msm_sensor_write_output_settings(struct msm_sensor_ctrl_t *s_ctrl,
 			s_ctrl->msm_sensor_reg->
 			output_settings[res].line_length_pclk},
 		{s_ctrl->sensor_output_reg_addr->frame_length_lines,
-			fll},
+        //B 2013/07/03
+            //fll),
+			s_ctrl->msm_sensor_reg->
+			output_settings[res].frame_length_lines},
+        //E 2013/07/03
 	};
 
 	rc = msm_camera_i2c_write_tbl(s_ctrl->sensor_i2c_client, dim_settings,
@@ -165,12 +178,28 @@ void msm_sensor_start_stream(struct msm_sensor_ctrl_t *s_ctrl)
 			s_ctrl->vision_mode_flag == 0)
 		s_ctrl->func_tbl->sensor_adjust_frame_lines(s_ctrl);
 
-	msm_camera_i2c_write_tbl(
-		s_ctrl->sensor_i2c_client,
-		s_ctrl->msm_sensor_reg->start_stream_conf,
-		s_ctrl->msm_sensor_reg->start_stream_conf_size,
-		s_ctrl->msm_sensor_reg->default_data_type);
-	msleep(20);
+    //B 2012/11/06
+    if (flash_on && board_type_with_hw_id() > DVT2_BOARD_HW_ID) {
+        msm_camera_i2c_write_tbl(
+	        s_ctrl->sensor_i2c_client,
+	        s_ctrl->msm_sensor_reg->flash_settings,
+		    s_ctrl->msm_sensor_reg->flash_settings_size,
+		    s_ctrl->msm_sensor_reg->default_data_type);
+        flash_on = 0;
+    } else {    
+	    msm_camera_i2c_write_tbl(
+		    s_ctrl->sensor_i2c_client,
+		    s_ctrl->msm_sensor_reg->start_stream_conf,
+		    s_ctrl->msm_sensor_reg->start_stream_conf_size,
+		    s_ctrl->msm_sensor_reg->default_data_type);
+    }
+    //E 2012/11/06
+    //B 2013/07/03
+    if (s_ctrl->sensor_id_info->sensor_id != 0x7692)
+	    msleep(20);
+    else
+        msleep(600);
+    //E 2013/07/03
 }
 
 void msm_sensor_stop_stream(struct msm_sensor_ctrl_t *s_ctrl)
@@ -210,7 +239,9 @@ int32_t msm_sensor_set_fps(struct msm_sensor_ctrl_t *s_ctrl,
 }
 
 int32_t msm_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
+//S  JackBB 2012/12/3 [Q111M]
 		uint16_t gain, uint32_t line, int32_t luma_avg, uint16_t fgain)
+//E  JackBB 2012/12/3 [Q111M]
 {
 	uint32_t fl_lines;
 	uint8_t offset;
@@ -229,13 +260,21 @@ int32_t msm_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
 		MSM_CAMERA_I2C_WORD_DATA);
 	msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 		s_ctrl->sensor_exp_gain_info->global_gain_addr, gain,
+/*B:20120919*/
+#ifdef CONFIG_IMX134
+		MSM_CAMERA_I2C_BYTE_DATA);
+#else
 		MSM_CAMERA_I2C_WORD_DATA);
+#endif
+/*E:20120919*/
 	s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
 	return 0;
 }
 
 int32_t msm_sensor_write_exp_gain2(struct msm_sensor_ctrl_t *s_ctrl,
+//S  JackBB 2012/12/3 [Q111M]
 		uint16_t gain, uint32_t line, int32_t luma_avg, uint16_t fgain)
+//E  JackBB 2012/12/3 [Q111M]
 {
 	uint32_t fl_lines, ll_pclk, ll_ratio;
 	uint8_t offset;
@@ -257,7 +296,13 @@ int32_t msm_sensor_write_exp_gain2(struct msm_sensor_ctrl_t *s_ctrl,
 		MSM_CAMERA_I2C_WORD_DATA);
 	msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 		s_ctrl->sensor_exp_gain_info->global_gain_addr, gain,
+/*B:20120919*/
+#ifdef CONFIG_IMX134
+		MSM_CAMERA_I2C_BYTE_DATA);
+#else
 		MSM_CAMERA_I2C_WORD_DATA);
+#endif
+/*E:20120919*/
 	s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
 	return 0;
 }
@@ -456,9 +501,11 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				sensor_write_exp_gain(
 					s_ctrl,
 					cdata.cfg.exp_gain.gain,
+//S  JackBB 2012/12/3 [Q111M]
 					cdata.cfg.exp_gain.line,
 					cdata.cfg.exp_gain.luma_avg,
 					cdata.cfg.exp_gain.fgain);
+//E  JackBB 2012/12/3 [Q111M]
 			break;
 
 		case CFG_SET_PICT_EXP_GAIN:
@@ -475,10 +522,29 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				sensor_write_snapshot_exp_gain(
 					s_ctrl,
 					cdata.cfg.exp_gain.gain,
+//S  JackBB 2012/12/3 [Q111M]
 					cdata.cfg.exp_gain.line,
 					cdata.cfg.exp_gain.luma_avg,
 					cdata.cfg.exp_gain.fgain);
+//E  JackBB 2012/12/3 [Q111M]
 			break;
+
+/*S: Jim Lai 20120925 */
+		case CFG_SEND_WB_INFO:
+			if (s_ctrl->func_tbl->
+			sensor_write_wb_gain == NULL) {
+				rc = -EFAULT;
+				break;
+			}
+			rc =
+				s_ctrl->func_tbl->
+				sensor_write_wb_gain(
+					s_ctrl,
+					cdata.cfg.wb_info.red_gain,
+					cdata.cfg.wb_info.green_gain,
+					cdata.cfg.wb_info.blue_gain);
+			break;
+/*E: Jim Lai 20120925 */
 
 		case CFG_SET_MODE:
 			if (s_ctrl->func_tbl->
@@ -496,6 +562,7 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 		case CFG_SET_EFFECT:
 			break;
 
+//S  JackBB 2012/12/3 [Q111M]
 		case CFG_HDR_UPDATE:
 			if (s_ctrl->func_tbl->
 			sensor_hdr_update == NULL) {
@@ -507,6 +574,7 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 					   s_ctrl,
 					   &(cdata.cfg.hdr_update_parm));
 			break;
+//E  JackBB 2012/12/3 [Q111M]
 
 		case CFG_SENSOR_INIT:
 			if (s_ctrl->func_tbl->
@@ -538,6 +606,23 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				rc = -EFAULT;
 			break;
 
+/*S: Jim Lai 20121019 */
+		case CFG_GET_STATS_DATA:
+			if (s_ctrl->func_tbl->sensor_get_stats_data == NULL) {
+				rc = -EFAULT;
+				break;
+			}
+			rc = s_ctrl->func_tbl->sensor_get_stats_data(
+				s_ctrl,
+				&cdata.cfg.stats_data);
+
+			if (copy_to_user((void *)argp,
+				&cdata,
+				sizeof(struct sensor_cfg_data)))
+				rc = -EFAULT;
+			break;
+/*E: Jim Lai 20121019 */
+
 		case CFG_START_STREAM:
 			if (s_ctrl->func_tbl->sensor_start_stream == NULL) {
 				rc = -EFAULT;
@@ -568,7 +653,20 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				sizeof(struct sensor_cfg_data)))
 				rc = -EFAULT;
 			break;
-
+/*S JackBB 2012/10/24 */
+		case CFG_SET_ATR_CTRL:
+			if (s_ctrl->func_tbl->
+			sensor_write_atr_control == NULL) {
+				rc = -EFAULT;
+				break;
+			}
+			rc =
+				s_ctrl->func_tbl->
+				sensor_write_atr_control(
+					s_ctrl,
+					cdata.cfg.atr_ctrl);
+			break;
+/*E JackBB 2012/10/24 */
 		case CFG_POWER_UP:
 			pr_err("%s calling power up\n", __func__);
 			if (s_ctrl->func_tbl->sensor_power_up)
@@ -1482,6 +1580,9 @@ int32_t msm_sensor_free_sensor_data(struct msm_sensor_ctrl_t *s_ctrl)
 	return 0;
 }
 
+static struct msm_xo_voter *cam_cxo_clock = NULL;        //create an XO vote
+static const char *cam_cxo_id = "CXO_clock";          //Create an ID for the driver
+
 int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0;
@@ -1491,6 +1592,11 @@ int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 		dev = &s_ctrl->pdev->dev;
 	else
 		dev = &s_ctrl->sensor_i2c_client->client->dev;
+
+    if (cam_cxo_clock == NULL)
+        cam_cxo_clock = msm_xo_get(MSM_XO_TCXO_D0, cam_cxo_id);   //create a handle for D0 buffer of XO
+	pr_err("%s: %d %s\n", __func__, __LINE__, data->sensor_name);
+
 	s_ctrl->reg_ptr = kzalloc(sizeof(struct regulator *)
 			* data->sensor_platform_info->num_vreg, GFP_KERNEL);
 	if (!s_ctrl->reg_ptr) {
@@ -1505,12 +1611,14 @@ int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 		goto request_gpio_failed;
 	}
 
+    msm_xo_mode_vote(cam_cxo_clock, MSM_XO_MODE_ON);  //Vote to turn ON the clock buffer
 	rc = msm_camera_config_vreg(dev,
 		s_ctrl->sensordata->sensor_platform_info->cam_vreg,
 		s_ctrl->sensordata->sensor_platform_info->num_vreg,
 		s_ctrl->vreg_seq,
 		s_ctrl->num_vreg_seq,
 		s_ctrl->reg_ptr, 1);
+    msm_xo_mode_vote(cam_cxo_clock, MSM_XO_MODE_PIN_CTRL);      // XO MODE Pin selectable
 	if (rc < 0) {
 		pr_err("%s: regulator on failed\n", __func__);
 		goto config_vreg_failed;
@@ -1620,6 +1728,10 @@ int32_t msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 			MSM_CCI_RELEASE);
 	}
 
+    if (cam_cxo_clock == NULL)
+        cam_cxo_clock = msm_xo_get(MSM_XO_TCXO_D0, cam_cxo_id);   //create a handle for D0 buffer of XO
+	pr_err("%s\n", __func__);
+
 	if (data->sensor_platform_info->i2c_conf &&
 		data->sensor_platform_info->i2c_conf->use_i2c_mux)
 		msm_sensor_disable_i2c_mux(
@@ -1647,6 +1759,7 @@ int32_t msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 		s_ctrl->num_vreg_seq,
 		s_ctrl->reg_ptr, 0);
 	msm_camera_request_gpio_table(data, 0);
+    msm_xo_mode_vote(cam_cxo_clock, MSM_XO_MODE_OFF);  //Vote to turn OFF the clock buffer
 	kfree(s_ctrl->reg_ptr);
 	s_ctrl->curr_res = MSM_SENSOR_INVALID_RES;
 	return 0;
@@ -1674,6 +1787,39 @@ int32_t msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 	}
 	return rc;
 }
+//B 2012/07/24 
+ssize_t msm_sensor_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    int32_t rc = 0;
+	uint16_t chipid = 0;
+    struct v4l2_subdev *subdev = (struct v4l2_subdev *)dev->p->driver_data;
+    struct msm_sensor_ctrl_t *s_ctrl = NULL;
+     
+    s_ctrl = get_sctrl(subdev);
+    if (s_ctrl) {
+        s_ctrl->func_tbl->sensor_power_up(s_ctrl);
+	    rc = msm_camera_i2c_read(
+			    s_ctrl->sensor_i2c_client,
+			    s_ctrl->sensor_id_info->sensor_id_reg_addr, &chipid,
+			    MSM_CAMERA_I2C_WORD_DATA);
+        if (rc < 0)
+		    pr_err("%s: %s: read id failed\n", __func__, s_ctrl->sensordata->sensor_name);		    
+        
+        s_ctrl->func_tbl->sensor_power_down(s_ctrl);
+    }
+    
+    return sprintf(buf, "0x%x\n", chipid);
+}
+static DEVICE_ATTR(sensor_id, 0644, msm_sensor_id_show, NULL);
+//E 2012/07/24 
+
+//B 2012/11/06
+void msm_sensor_set_flash(int on)
+{
+    flash_on = on;
+}
+EXPORT_SYMBOL(msm_sensor_set_flash);
+//E 2012/11/06
 
 int32_t msm_sensor_i2c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
@@ -1720,7 +1866,12 @@ int32_t msm_sensor_i2c_probe(struct i2c_client *client,
 		rc = msm_sensor_match_id(s_ctrl);
 	if (rc < 0)
 		goto probe_fail;
-
+    //B 2012/07/24 
+    rc = device_create_file(&client->dev, &dev_attr_sensor_id);
+	if (rc) {
+	    printk(KERN_ERR "ov7692: device_create_file failed\n");    		
+	}
+    //E 2012/07/24 
 	if (!s_ctrl->wait_num_frames)
 		s_ctrl->wait_num_frames = 1 * Q10;
 

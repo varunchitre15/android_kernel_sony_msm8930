@@ -44,6 +44,12 @@
 #include "ramdump.h"
 #include "timer.h"
 
+
+#ifdef CONFIG_CCI_KLOG
+#include <linux/cciklog.h>
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 #define DRV_NAME	"msm_dsps"
 #define DRV_VERSION	"4.03"
 
@@ -390,6 +396,12 @@ static void dsps_log_sfr(void)
 	const char dflt_reason[] = "Died too early due to unknown reason";
 	char *smem_reset_reason;
 	unsigned smem_reset_size;
+
+
+#if CCI_KLOG_CRASH_SIZE
+	set_fault_state(0x5, -1, "dsps");
+#endif // #if CCI_KLOG_CRASH_SIZE
+
 
 	smem_reset_reason = smem_get_entry(SMEM_SSR_REASON_DSPS0,
 		&smem_reset_size);

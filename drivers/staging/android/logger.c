@@ -29,6 +29,12 @@
 
 #include <asm/ioctls.h>
 
+
+#ifdef CONFIG_CCI_KLOG
+#include <linux/cciklog.h>
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 /*
  * struct logger_log - represents a specific log, such as 'main' or 'radio'
  *
@@ -452,6 +458,19 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct timespec now;
 	ssize_t ret = 0;
 
+
+#ifdef CONFIG_CCI_KLOG
+	unsigned int category = KLOG_IGNORE;
+	unsigned char *log_priority = NULL;
+	unsigned char *log_tag = NULL;
+	unsigned char *log_msg = NULL;
+	int log_tag_bytes = 0;
+	int log_msg_bytes = 0;
+	int idx = 0;
+	size_t log_offset = 0;
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 	now = current_kernel_time();
 
 	header.pid = current->tgid;
@@ -485,6 +504,12 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		/* figure out how much of this vector we can keep */
 		len = min_t(size_t, iov->iov_len, header.len - ret);
 
+
+#ifdef CONFIG_CCI_KLOG
+		log_offset = log->w_off;
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 		/* write out this segment's payload */
 		nr = do_write_log_from_user(log, iov->iov_base, len);
 		if (unlikely(nr < 0)) {
@@ -493,9 +518,75 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 			return nr;
 		}
 
+#ifdef CONFIG_CCI_KLOG
+		if(idx == 0)
+		{
+			log_priority = log->buffer + log_offset;
+		}
+		else if(idx == 1)
+		{
+			log_tag = log->buffer + log_offset;
+			log_tag_bytes = nr;
+		}
+		else if(idx == 2)
+		{
+			log_msg = log->buffer + log_offset;
+			log_msg_bytes = nr;
+		}
+		idx++;
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 		iov++;
 		ret += nr;
 	}
+
+#ifdef CONFIG_CCI_KLOG
+	if(idx == 3)// possible misformatted iovec
+	{
+		if(!strcmp(log->misc.name, LOGGER_LOG_MAIN))
+		{
+#if CCI_KLOG_ANDROID_MAIN_SIZE
+			category = KLOG_ANDROID_MAIN;
+#else // #if CCI_KLOG_ANDROID_MAIN_SIZE
+			category = KLOG_IGNORE;
+#endif // #if CCI_KLOG_ANDROID_MAIN_SIZE
+		}
+		else if(!strcmp(log->misc.name, LOGGER_LOG_RADIO))
+		{
+#if CCI_KLOG_ANDROID_SYSTEM_SIZE
+			category = KLOG_ANDROID_RADIO;
+#else // #if CCI_KLOG_ANDROID_SYSTEM_SIZE
+			category = KLOG_IGNORE;
+#endif // #if CCI_KLOG_ANDROID_SYSTEM_SIZE
+		}
+		else if(!strcmp(log->misc.name, LOGGER_LOG_SYSTEM))
+		{
+#if CCI_KLOG_ANDROID_RADIO_SIZE
+			category = KLOG_ANDROID_SYSTEM;
+#else // #if CCI_KLOG_ANDROID_RADIO_SIZE
+			category = KLOG_IGNORE;
+#endif // #if CCI_KLOG_ANDROID_RADIO_SIZE
+		}
+		else if(!strcmp(log->misc.name, LOGGER_LOG_EVENTS))
+		{
+#if CCI_KLOG_ANDROID_EVENTS_SIZE
+			category = KLOG_ANDROID_EVENTS;
+#else // #if CCI_KLOG_ANDROID_EVENTS_SIZE
+			category = KLOG_IGNORE;
+#endif // #if CCI_KLOG_ANDROID_EVENTS_SIZE
+		}
+		else
+		{
+			kprintk("%s():%d:Unable to identify the log name:%s\n", __func__, __LINE__, log->misc.name);
+		}
+		if(category != KLOG_IGNORE)
+		{
+			cklc_append_android_log(category, &header, log_priority, log_tag, log_tag_bytes, log_msg, log_msg_bytes);
+		}
+	}
+#endif // #ifdef CONFIG_CCI_KLOG
+
 
 	mutex_unlock(&log->mutex);
 

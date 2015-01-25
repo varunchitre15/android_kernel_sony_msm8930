@@ -253,6 +253,11 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 	int ret = 0, j;
 	char *prop_buf;
 	char *attrname;
+        //S:LO
+	char log_buf[512];
+	ssize_t cx = 0;
+	char *pch;
+        //E:LO
 
 	dev_dbg(dev, "uevent\n");
 
@@ -271,6 +276,11 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (!prop_buf)
 		return -ENOMEM;
 
+	//S:LO
+	cx = 0;
+	memset((void*) log_buf, 0x0, sizeof(log_buf));
+	cx += snprintf(log_buf+cx,sizeof(log_buf)-cx,"%s:",psy->name);
+	//E:LO
 	for (j = 0; j < psy->num_properties; j++) {
 		struct device_attribute *attr;
 		char *line;
@@ -304,7 +314,21 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 		kfree(attrname);
 		if (ret)
 			goto out;
+		//S:LO
+		if ((sizeof(log_buf)-cx)<=0) {
+			pch=strchr(log_buf,':');
+			memset((void*) (pch+1), 0x0, sizeof(pch+1));
+			cx = pch-log_buf+1;
+		}
+		if (strcmp(attr->attr.name,"energy_full") && strcmp(attr->attr.name,"voltage_max_design") 
+			&& strcmp(attr->attr.name,"voltage_min_design")&& strcmp(attr->attr.name,"charge_now")
+			&& strcmp(attr->attr.name,"charge_full")&& strcmp(attr->attr.name,"current_max")
+			&& strcmp(attr->attr.name,"technology")){
+			cx += snprintf(log_buf+cx,sizeof(log_buf)-cx,"%s=%s, ",attr->attr.name,prop_buf);
+		}
+		//E:LO
 	}
+        printk("CH(L)=> %s\n",log_buf);//LO
 
 out:
 	free_page((unsigned long)prop_buf);

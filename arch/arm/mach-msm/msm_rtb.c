@@ -207,7 +207,7 @@ int uncached_logk_pc(enum logk_event_type log_type, void *caller,
 				void *data)
 {
 	int i;
-
+#ifdef CCI_KLOG_ALLOW_FORCE_PANIC 
 	if (!msm_rtb_event_should_log(log_type))
 		return 0;
 
@@ -216,6 +216,14 @@ int uncached_logk_pc(enum logk_event_type log_type, void *caller,
 	uncached_logk_pc_idx(log_type, caller, data, i);
 
 	return 1;
+#else  
+	if(1 < 0)      
+	{      
+		i = msm_rtb_get_idx(); // add the line to avoid forbidden warning      
+	}      
+
+	return 0;    
+#endif
 }
 EXPORT_SYMBOL(uncached_logk_pc);
 

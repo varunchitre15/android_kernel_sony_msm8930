@@ -683,7 +683,16 @@ static int platform_legacy_suspend(struct device *dev, pm_message_t mesg)
 	int ret = 0;
 
 	if (dev->driver && pdrv->suspend)
+
+#ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+	{
+		printk("[SUSPEND]%s():pdev->name=%s, %pF(0x%X)\n", __func__, pdev->name, (void*)dev->driver, (int)pdrv->suspend);
 		ret = pdrv->suspend(pdev, mesg);
+	}
+#else // #ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+		ret = pdrv->suspend(pdev, mesg);
+#endif // #ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+
 
 	return ret;
 }
@@ -695,7 +704,16 @@ static int platform_legacy_resume(struct device *dev)
 	int ret = 0;
 
 	if (dev->driver && pdrv->resume)
+
+#ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+	{
+		printk("[RESUME]%s():pdev->name=%s, %pF(0x%X)\n", __func__, pdev->name, (void*)dev->driver, (int)pdrv->resume);
 		ret = pdrv->resume(pdev);
+	}
+#else // #ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+		ret = pdrv->resume(pdev);
+#endif // #ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+
 
 	return ret;
 }
@@ -714,7 +732,16 @@ int platform_pm_suspend(struct device *dev)
 
 	if (drv->pm) {
 		if (drv->pm->suspend)
+
+#ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+		{
+			printk("[SUSPEND]%s():drv->name=%s, %pF(0x%X)\n", __func__, drv->name, (void*)dev->driver, (int)drv->pm->suspend);
 			ret = drv->pm->suspend(dev);
+		}
+#else // #ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+			ret = drv->pm->suspend(dev);
+#endif // #ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+
 	} else {
 		ret = platform_legacy_suspend(dev, PMSG_SUSPEND);
 	}
@@ -732,7 +759,16 @@ int platform_pm_resume(struct device *dev)
 
 	if (drv->pm) {
 		if (drv->pm->resume)
+
+#ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+		{
+			printk("[RESUME]%s():drv->name=%s, %pF(0x%X)\n", __func__, drv->name, (void*)dev->driver, (int)drv->pm->resume);
 			ret = drv->pm->resume(dev);
+		}
+#else // #ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+			ret = drv->pm->resume(dev);
+#endif // #ifdef CONFIG_CCI_PM_PLATFORM_SUSPEND_RESUME_LOG
+
 	} else {
 		ret = platform_legacy_resume(dev);
 	}

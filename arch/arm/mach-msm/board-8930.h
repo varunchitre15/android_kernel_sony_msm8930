@@ -162,7 +162,16 @@ void __init configure_8930_sglte_regulator(void);
 #define MSM_8930_GSBI8_QUP_I2C_BUS_ID 8
 #define MSM_8930_GSBI9_QUP_I2C_BUS_ID 0
 #define MSM_8930_GSBI10_QUP_I2C_BUS_ID 10
+
+//
+// , 20120708, [ ] Porting sensor. GSBI_1 config
+//
+#if 1
+#define MSM_8930_GSBI1_QUP_I2C_BUS_ID 1
 #define MSM_8930_GSBI12_QUP_I2C_BUS_ID 12
+#endif
+// 
+
 
 extern struct msm_rtb_platform_data msm8930_rtb_pdata;
 extern struct msm_cache_dump_platform_data msm8930_cache_dump_pdata;

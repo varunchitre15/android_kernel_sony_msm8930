@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,7 +16,7 @@
 #define __SUBSYS_RESTART_H
 
 #include <linux/spinlock.h>
-
+#include <mach/msm_iomap.h>
 #define SUBSYS_NAME_MAX_LENGTH 40
 
 struct subsys_device;
@@ -26,6 +27,84 @@ enum {
 	RESET_SUBSYS_INDEPENDENT,
 	RESET_LEVEL_MAX
 };
+#ifdef CONFIG_CCI_KLOG
+#define POWER_OFF_SPECIAL_ADDR	IOMEM(0xFB9FFFFC)
+#define CRASH_SPECIAL_ADDR	IOMEM(0xFB9FFFF8)
+#define UNKONW_CRASH_SPECIAL_ADDR	IOMEM(0xFB9FFFF0)
+#endif
+#define POWERONOFFRECORD	0xBBCCDD00
+#define IMEM_CERT_RECORD	0x11223344
+enum poweronvalue
+{
+	pmic_inactive = 0,
+	pmic_keypad,
+	pmic_rtc,
+	pmic_cable,
+	pmic_smpl,
+	pmic_wdog,
+	pmic_usbchg,
+	pmic_wallchg,
+	pmic_hotkeyreset,		
+	pmic_unknown,
+	pmic_max,
+};
+
+enum pwroffvalue
+{
+	inactive = 0,
+	hotwarereset,
+	rpmdogbite,
+	acpudogbite,	
+	kernelpanic,	
+	modemfatal,
+	lpassfatal,
+	rivafatal,
+	q6fatal,
+	gssfatal,
+	exmodemfatal,
+	dspsfatal,
+	normalreboot,	
+	normalreboot_bootloader,	
+	normalreboot_oem,	
+	normalreboot_recovery,	
+	normalreboot_fastboot,	
+	adloadmode,	
+	mdloadmode,	
+	pmicwdog,	
+	coldboot,
+	lowbattery,
+	overheat,
+	poweroff,
+	unknown,
+	pwroffvaluemax,
+};
+
+typedef struct
+{
+	unsigned char	pwronindex;
+	unsigned char	pwronrecord[0xA];
+	unsigned short	pwronrecordcount[pmic_max];
+	unsigned char	pwroffindex;
+	unsigned char	pwroffrecord[0xA];
+	unsigned short	pwroffrecordcount[pwroffvaluemax];
+	bool	PM_WDT;
+	unsigned int	RPM_WDT;
+	unsigned int	MSMRST_STAT;
+	unsigned int	ACPU0_WDT;
+	unsigned int	ACPU1_WDT;
+	unsigned int	PM_PWRON;
+	unsigned int	FIQ_ADDR;
+	unsigned int	REST_REASON;
+	unsigned int	CUR_DDRVALUE;
+	unsigned int	CUR_IMEMVALUE;
+}cci_pwrrecord;
+
+typedef struct
+{
+	cci_pwrrecord szpwrd;
+	unsigned char	reserved[0x200-sizeof(cci_pwrrecord)-sizeof(unsigned int)];
+	unsigned int	SIGN;
+}cci_rsvrecord;
 
 struct subsys_desc {
 	const char *name;

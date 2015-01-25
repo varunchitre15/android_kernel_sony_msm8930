@@ -1,0 +1,6 @@
+#
+# Copyright (C) 2012 Sony Mobile Communications AB.
+#
+config CCI_KERNEL_INFO
+	tristate "CCI kernel info"
+	default y

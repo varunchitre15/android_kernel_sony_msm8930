@@ -40,6 +40,15 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/exception.h>
 
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+const char* get_fsr_name(unsigned int fsr);
+extern void set_fault_state(int level, int type, const char* msg);
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
+
 #ifdef CONFIG_MMU
 
 #ifdef CONFIG_KPROBES
@@ -144,6 +153,13 @@ static void
 __do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 		  struct pt_regs *regs)
 {
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+	int fsr_index = -1;
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
 	/*
 	 * Are we prepared to handle this kernel fault?
 	 */
@@ -154,6 +170,22 @@ __do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	 * No handler, we'll have to terminate things with extreme prejudice.
 	 */
 	bust_spinlocks(1);
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+	if(fsr & FSR_LNX_PF)//prefetch abort
+	{
+		fsr_index = fsr_fs(fsr & ~FSR_LNX_PF);
+		set_fault_state(0x3, fsr_index, get_fsr_name(fsr));
+	}
+	else//data abort
+	{
+		fsr_index = fsr_fs(fsr);
+		set_fault_state(0x4, fsr_index, get_fsr_name(fsr));
+	}
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
 	printk(KERN_ALERT
 		"Unable to handle kernel %s at virtual address %08lx\n",
 		(addr < PAGE_SIZE) ? "NULL pointer dereference" :
@@ -730,6 +762,24 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	info.si_addr  = (void __user *)addr;
 	arm_notify_die("", regs, &info, ifsr, 0);
 }
+
+
+#ifdef CCI_KLOG_CRASH_SIZE
+#if CCI_KLOG_CRASH_SIZE
+const char* get_fsr_name(unsigned int fsr)
+{
+	if(fsr & FSR_LNX_PF)//prefetch abort
+	{
+		return ifsr_info[fsr_fs(fsr & ~FSR_LNX_PF)].name;
+	}
+	else//data abort
+	{
+		return fsr_info[fsr_fs(fsr)].name;
+	}
+}
+#endif // #if CCI_KLOG_CRASH_SIZE
+#endif // #ifdef CCI_KLOG_CRASH_SIZE
+
 
 #ifndef CONFIG_ARM_LPAE
 static int __init exceptions_init(void)

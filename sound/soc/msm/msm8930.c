@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -178,6 +179,8 @@ static int msm8930_cfg_spkr_gpio(int gpio,
 	return ret;
 }
 
+static struct mutex cdc_mclk_mutex;  // BAM_S C 130530 [Mig:Ic9c3a6e5]
+
 static void msm8960_ext_spk_power_amp_on(u32 spk)
 {
 	int ret = 0;
@@ -327,13 +330,27 @@ static int msm8930_enable_codec_ext_clk(
 		struct snd_soc_codec *codec, int enable,
 		bool dapm)
 {
-	int r = 0;
+	int r = 0;  // BAM_S C 130530 [Mig:Ic9c3a6e5]
 	pr_debug("%s: enable = %d\n", __func__, enable);
 
-	mutex_lock(&cdc_mclk_mutex);
+	mutex_lock(&cdc_mclk_mutex);  // BAM_S C 130530 [Mig:Ic9c3a6e5]
 	if (enable) {
 		clk_users++;
 		pr_debug("%s: clk_users = %d\n", __func__, clk_users);
+		#if 0  // BAM_S C 130530 [Mig:Ic9c3a6e5]
+		if (clk_users != 1)
+			return 0;
+
+		if (codec_clk) {
+			clk_set_rate(codec_clk, SITAR_EXT_CLK_RATE);
+			clk_prepare_enable(codec_clk);
+			sitar_mclk_enable(codec, 1, dapm);
+		} else {
+			pr_err("%s: Error setting Sitar MCLK\n", __func__);
+			clk_users--;
+			return -EINVAL;
+		}
+		#else
 		if (clk_users == 1) {
 			if (codec_clk) {
 				clk_set_rate(codec_clk, SITAR_EXT_CLK_RATE);
@@ -346,7 +363,20 @@ static int msm8930_enable_codec_ext_clk(
 				r = -EINVAL;
 			}
 		}
+		#endif // BAM_E C 130530
 	} else {
+		#if 0  // BAM_S C 130530 [Mig:Ic9c3a6e5]
+		pr_debug("%s: clk_users = %d\n", __func__, clk_users);
+		if (clk_users == 0)
+			return 0;
+		clk_users--;
+		if (!clk_users) {
+			pr_debug("%s: disabling MCLK. clk_users = %d\n",
+					 __func__, clk_users);
+			sitar_mclk_enable(codec, 0, dapm);
+			clk_disable_unprepare(codec_clk);
+		}
+		#else
 		if (clk_users > 0) {
 			clk_users--;
 			pr_debug("%s: clk_users = %d\n", __func__, clk_users);
@@ -360,9 +390,14 @@ static int msm8930_enable_codec_ext_clk(
 			pr_err("%s: Error releasing Sitar MCLK\n", __func__);
 			r = -EINVAL;
 		}
+		#endif  // BAM_E C 130530
 	}
+	#if 0  // BAM_S C 130530 [Mig:Ic9c3a6e5]
+	return 0;
+	#else
 	mutex_unlock(&cdc_mclk_mutex);
 	return r;
+	#endif  // BAM_E C 130530
 }
 
 static bool msm8930_swap_gnd_mic(struct snd_soc_codec *codec)
@@ -427,11 +462,19 @@ static const struct snd_soc_dapm_route common_audio_map[] = {
 	{"MIC BIAS2 External", NULL, "Headset Mic"},
 
 	/* Microphone path */
+	#if 0  // BAM_S C 130530 [Mig:]
 	{"AMIC1", NULL, "MIC BIAS2 External"},
 	{"MIC BIAS2 External", NULL, "ANCLeft Headset Mic"},
 
 	{"AMIC3", NULL, "MIC BIAS2 External"},
 	{"MIC BIAS2 External", NULL, "ANCRight Headset Mic"},
+	#else
+	{"AMIC1", NULL, "MIC BIAS1 External"},
+	{"MIC BIAS1 External", NULL, "ANCLeft Headset Mic"},
+
+	{"AMIC3", NULL, "MIC BIAS1 External"},
+	{"MIC BIAS1 External", NULL, "ANCRight Headset Mic"},
+	#endif  // BAM_E C 130530
 
 	{"HEADPHONE", NULL, "LDO_H"},
 
@@ -702,7 +745,11 @@ static void *def_sitar_mbhc_cal(void)
 #undef S
 #define S(X, Y) ((SITAR_MBHC_CAL_PLUG_TYPE_PTR(sitar_cal)->X) = (Y))
 	S(v_no_mic, 30);
+	#if 0  // BAM_S C 130530 [Mig:]
 	S(v_hs_max, 1650);
+	#else
+	S(v_hs_max, 2400);
+	#endif  // BAM_E C 130530
 #undef S
 #define S(X, Y) ((SITAR_MBHC_CAL_BTN_DET_PTR(sitar_cal)->X) = (Y))
 	S(c[0], 62);
@@ -719,6 +766,7 @@ static void *def_sitar_mbhc_cal(void)
 	btn_cfg = SITAR_MBHC_CAL_BTN_DET_PTR(sitar_cal);
 	btn_low = sitar_mbhc_cal_btn_det_mp(btn_cfg, SITAR_BTN_DET_V_BTN_LOW);
 	btn_high = sitar_mbhc_cal_btn_det_mp(btn_cfg, SITAR_BTN_DET_V_BTN_HIGH);
+	#if 0  // BAM_S C 130530 [Mig:]
 	btn_low[0] = -50;
 	btn_high[0] = 10;
 	btn_low[1] = 11;
@@ -735,6 +783,24 @@ static void *def_sitar_mbhc_cal(void)
 	btn_high[6] = 163;
 	btn_low[7] = 164;
 	btn_high[7] = 250;
+	#else
+	btn_low[0] = -50;
+	btn_high[0] = 99;
+	btn_low[1] = 100;
+	btn_high[1] = 299;
+	btn_low[2] = 300;
+	btn_high[2] = 599;
+	btn_low[3] = 600;
+	btn_high[3] = 1049;
+	btn_low[4] = 1050;
+	btn_high[4] = 1099;
+	btn_low[5] = 1100;
+	btn_high[5] = 1149;
+	btn_low[6] = 1150;
+	btn_high[6] = 1199;
+	btn_low[7] = 1200;
+	btn_high[7] = 1299;
+	#endif  // BAM_E C 130530
 	n_ready = sitar_mbhc_cal_btn_det_mp(btn_cfg, SITAR_BTN_DET_N_READY);
 	n_ready[0] = 48;
 	n_ready[1] = 38;
@@ -1566,7 +1632,7 @@ static int __init msm8930_audio_init(void)
 		pr_err("%s Fail to configure headset mic gpios\n", __func__);
 
 	atomic_set(&auxpcm_rsc_ref, 0);
-	mutex_init(&cdc_mclk_mutex);
+	mutex_init(&cdc_mclk_mutex);  // BAM_S C 130530 [Mig:Ic9c3a6e5]
 	return ret;
 
 }
@@ -1581,7 +1647,7 @@ static void __exit msm8930_audio_exit(void)
 	msm8930_free_headset_mic_gpios();
 	platform_device_unregister(msm8930_snd_device);
 	kfree(mbhc_cfg.calibration);
-	mutex_destroy(&cdc_mclk_mutex);
+	mutex_destroy(&cdc_mclk_mutex);  // BAM_S C 130530 [Mig:Ic9c3a6e5]
 }
 module_exit(msm8930_audio_exit);
 

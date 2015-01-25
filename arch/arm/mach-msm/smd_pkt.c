@@ -502,6 +502,9 @@ ssize_t smd_pkt_write(struct file *file,
 		mutex_unlock(&smd_pkt_devp->tx_lock);
 		pr_err("%s: Error:%d in smd_pkt_dev id:%d @ smd_write_start\n",
 			__func__, r, smd_pkt_devp->i);
+
+		panic("smd_write_start failed");
+
 		return r;
 	}
 

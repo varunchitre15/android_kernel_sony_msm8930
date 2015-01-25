@@ -1,0 +1,18 @@
+config CCI_KLOG
+	bool "CCI kernel and logcat log collector"
+	default n
+
+config CCI_KLOG_RECORD_KERNEL_TIMESTAMP
+	bool "Record kernel timestmp into KLog header area"
+	depends on CCI_KLOG
+	default y
+	help
+	  This option enables KLog to record the kernel timestamp into the KLog header area.
+
+config CCI_KLOG_RECORD_RPM_VERSION
+	bool "Record the RPM firmware version into KLog header area"
+	depends on CCI_KLOG
+	default y
+	help
+	  This option enables KLog to record the RPM firmware version into the KLog header area.
+

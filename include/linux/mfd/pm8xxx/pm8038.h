@@ -84,6 +84,9 @@ struct pm8038_platform_data {
 	struct pm8xxx_adc_platform_data		*adc_pdata;
 	struct pm8xxx_led_platform_data		*leds_pdata;
 	struct pm8xxx_vibrator_platform_data	*vibrator_pdata;
+        
+        struct pm8xxx_vibrator_platform_data    *vib_pdata;
+        
 	struct pm8xxx_ccadc_platform_data	*ccadc_pdata;
 	struct pm8xxx_spk_platform_data		*spk_pdata;
 };

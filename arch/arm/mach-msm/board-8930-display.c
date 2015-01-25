@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,6 +25,7 @@
 #include <mach/socinfo.h>
 #include <linux/msm_ion.h>
 #include <mach/ion.h>
+#include <mach/msm_xo.h> //Taylor
 
 #include "devices.h"
 #include "board-8930.h"
@@ -39,7 +41,9 @@
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
 #ifdef CONFIG_FB_MSM_OVERLAY0_WRITEBACK
-#define MSM_FB_OVERLAY0_WRITEBACK_SIZE roundup((1376 * 768 * 3 * 2), 4096)
+//CCI Taylopr, display driver porting 2012,0707
+//#define MSM_FB_OVERLAY0_WRITEBACK_SIZE roundup((1376 * 768 * 3 * 2), 4096)
+#define MSM_FB_OVERLAY0_WRITEBACK_SIZE roundup((854 * 484 * 3 * 2), 4096)
 #else
 #define MSM_FB_OVERLAY0_WRITEBACK_SIZE (0)
 #endif  /* CONFIG_FB_MSM_OVERLAY0_WRITEBACK */
@@ -53,6 +57,9 @@
 #define MDP_VSYNC_GPIO 0
 
 #define MIPI_CMD_NOVATEK_QHD_PANEL_NAME	"mipi_cmd_novatek_qhd"
+//CCI Taylopr, display driver porting 2012,0707
+#define MIPI_CMD_SAMSUNG_FWVGA_PANEL_NAME	"mipi_cmd_samsung_fwvga"
+#define MIPI_CMD_CHIMEI_FWVGA_PANEL_NAME	"mipi_cmd_chimei_fwvga"
 #define MIPI_VIDEO_NOVATEK_QHD_PANEL_NAME	"mipi_video_novatek_qhd"
 #define MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME	"mipi_video_toshiba_wsvga"
 #define MIPI_VIDEO_CHIMEI_WXGA_PANEL_NAME	"mipi_video_chimei_wxga"
@@ -61,6 +68,7 @@
 #define MIPI_VIDEO_NT_HD_PANEL_NAME		"mipi_video_nt35590_720p"
 #define HDMI_PANEL_NAME	"hdmi_msm"
 #define TVOUT_PANEL_NAME	"tvout_msm"
+extern int display_id;
 
 static struct resource msm_fb_resources[] = {
 	{
@@ -81,7 +89,21 @@ static int msm_fb_detect_panel(const char *name)
 				PANEL_NAME_MAX_LEN)))
 			return 0;
 	}
-
+ // Taylor--2012,0707
+	if (!display_id){
+		//SAMSUNG
+		if (!strncmp(name, MIPI_CMD_SAMSUNG_FWVGA_PANEL_NAME,
+				strnlen(MIPI_CMD_SAMSUNG_FWVGA_PANEL_NAME,
+					PANEL_NAME_MAX_LEN)))
+			return 0;
+		}
+	else{
+		//CHIMEI
+		if (!strncmp(name, MIPI_CMD_CHIMEI_FWVGA_PANEL_NAME,
+				strnlen(MIPI_CMD_CHIMEI_FWVGA_PANEL_NAME,
+					PANEL_NAME_MAX_LEN)))
+			return 0;
+	}
 #if !defined(CONFIG_FB_MSM_LVDS_MIPI_PANEL_DETECT) && \
 	!defined(CONFIG_FB_MSM_MIPI_PANEL_DETECT)
 	if (!strncmp(name, MIPI_VIDEO_NOVATEK_QHD_PANEL_NAME,
@@ -132,6 +154,340 @@ static struct platform_device msm_fb_device = {
 };
 
 static bool dsi_power_on;
+//CCI Taylopr, display driver porting 2012,0707
+//Display Driver--Taylor--20120622--B
+#define DISP_RST_GPIO 58
+#define DISP_LDO2V8_GPIO 12
+
+#ifdef CONFIG_FB_MSM_MIPI_SA77_CMD_FWVGA_PANEL
+static int mipi_dsi_samsung_panel_power(int on)
+{
+	static struct regulator *reg_l23,*reg_l2;
+	int rc;
+	static struct msm_xo_voter *cxo_clock; //create an XO vote
+	static const char *id = "CXO_clock"; //Create an ID for the driver
+
+	printk(KERN_ERR "%s: MIPI : %d\n", __func__, on);
+	pr_info("%s(%d): init=%d\n", __func__, on, dsi_power_on);
+		
+	
+	cxo_clock = msm_xo_get(MSM_XO_TCXO_D0, id); //create a handle for D0 buffer of XO 
+
+
+	if (!dsi_power_on) {
+
+		printk(KERN_ERR "MIPI:: init %s: \n", __func__);
+
+		reg_l23 = regulator_get(&msm_mipi_dsi1_device.dev,
+				"dsi_vddio");
+		if (IS_ERR(reg_l23)) {
+			pr_err("could not get 8038_l23, rc = %ld\n",
+				PTR_ERR(reg_l23));
+			return -ENODEV;
+		}
+
+		rc = regulator_set_voltage(reg_l23, 1800000, 1800000);
+		if (rc) {
+			pr_err("set_voltage l23 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+
+		reg_l2 = regulator_get(&msm_mipi_dsi1_device.dev,
+				"dsi_vdda");
+		if (IS_ERR(reg_l2)) {
+			pr_err("could not get 8038_l2, rc = %ld\n",
+				PTR_ERR(reg_l2));
+			return -ENODEV;
+		}
+		rc = regulator_set_voltage(reg_l2, 1200000, 1200000);
+		if (rc) {
+			pr_err("set_voltage l2 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+
+		//Enable LDO_2V8 which is controlled by GPIO 12
+		rc = gpio_request(DISP_LDO2V8_GPIO, "disp_ldo_2v8_n");
+		if (rc) {
+			pr_err("request gpio DISP_LDO2V8_GPIO failed, rc=%d\n",
+				rc);
+			gpio_free(DISP_LDO2V8_GPIO);
+			return -ENODEV;
+		}
+
+
+		rc = gpio_tlmm_config(GPIO_CFG(DISP_LDO2V8_GPIO, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		if (rc)
+		{
+			printk("%s: gpio_tlmm_config  DISP_LDO2V8_GPIO failed(%d)\n",  __func__, rc);
+		}
+
+		gpio_set_value(DISP_LDO2V8_GPIO, 1);
+
+		rc = gpio_request(DISP_RST_GPIO, "disp_rst_n");
+		if (rc) {
+			pr_err("request gpio DISP_RST_GPIO failed, rc=%d\n",
+				rc);
+			gpio_free(DISP_RST_GPIO);
+			return -ENODEV;
+		}
+
+		rc = gpio_tlmm_config(GPIO_CFG(DISP_RST_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		if (rc)
+		{
+			printk("%s: gpio_tlmm_config  DISP_RST_GPIO failed(%d)\n",  __func__, rc);
+		}
+
+		gpio_set_value(DISP_RST_GPIO, 0);
+
+		dsi_power_on = true;
+	}
+	if (on) {
+		/*
+		rc = regulator_set_optimum_mode(reg_l23, 100000);
+		if (rc < 0) {
+			pr_err("set_optimum_mode l23 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+		rc = regulator_set_optimum_mode(reg_l2, 100000);
+		if (rc < 0) {
+			pr_err("set_optimum_mode l2 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}*/
+		msm_xo_mode_vote(cxo_clock, MSM_XO_MODE_ON); 
+		
+		rc = regulator_enable(reg_l23);
+		if (rc) {
+			pr_err("enable l23 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+		rc = regulator_enable(reg_l2);
+		if (rc) {
+			pr_err("enable l2 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+
+
+		rc = gpio_tlmm_config(GPIO_CFG(DISP_LDO2V8_GPIO, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		if (rc)
+		{
+			printk("%s: gpio_tlmm_config  DISP_LDO2V8_GPIO failed(%d)\n",  __func__, rc);
+		}
+
+		gpio_set_value(DISP_LDO2V8_GPIO, 1);
+
+
+		mdelay(50);
+		gpio_set_value(DISP_RST_GPIO, 0);
+		mdelay(1);
+		gpio_set_value(DISP_RST_GPIO, 1);
+		mdelay(10);
+
+		msm_xo_mode_vote(cxo_clock, MSM_XO_MODE_OFF);
+	} else {
+
+		//Pull Low GPIO 12 for suspend-->
+
+		gpio_set_value(DISP_RST_GPIO, 0);
+
+		rc = gpio_tlmm_config(GPIO_CFG(DISP_LDO2V8_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		if (rc)
+		{
+			printk("%s: gpio_tlmm_config  DISP_LDO2V8_GPIO failed(%d)\n",  __func__, rc);
+		}
+
+		gpio_set_value(DISP_LDO2V8_GPIO, 0);
+		//Pull Low GPIO 12 for suspend<--
+
+		mdelay(240);
+		rc = regulator_disable(reg_l23);
+		if (rc) {
+			pr_err("disable reg_l23 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+		rc = regulator_disable(reg_l2);
+		if (rc) {
+			pr_err("disable reg_l2 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+
+		rc = regulator_set_optimum_mode(reg_l23, 100);
+		if (rc < 0) {
+			pr_err("set_optimum_mode l23 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+		rc = regulator_set_optimum_mode(reg_l2, 100);
+		if (rc < 0) {
+			pr_err("set_optimum_mode l2 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int mipi_dsi_chimei_panel_power(int on)
+{
+	static struct regulator *reg_l23,*reg_l2;
+	int rc;
+	static struct msm_xo_voter *cxo_clock; //create an XO vote
+	static const char *id = "CXO_clock"; //Create an ID for the driver
+
+	printk(KERN_ERR "%s: MIPI : %d\n", __func__, on);
+	pr_info("%s(%d): init=%d\n", __func__, on, dsi_power_on);
+	
+	cxo_clock = msm_xo_get(MSM_XO_TCXO_D0, id); //create a handle for D0 buffer of XO 	
+
+	if (!dsi_power_on) {
+
+		printk(KERN_ERR "MIPI:: init %s: \n", __func__);
+
+		reg_l23 = regulator_get(&msm_mipi_dsi1_device.dev,
+				"dsi_vddio");
+		if (IS_ERR(reg_l23)) {
+			pr_err("could not get 8038_l23, rc = %ld\n",
+				PTR_ERR(reg_l23));
+			return -ENODEV;
+		}
+		
+		rc = regulator_set_voltage(reg_l23, 1800000, 1800000);
+		if (rc) {
+			pr_err("set_voltage l23 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+
+		reg_l2 = regulator_get(&msm_mipi_dsi1_device.dev,
+				"dsi_vdda");
+		if (IS_ERR(reg_l2)) {
+			pr_err("could not get 8038_l2, rc = %ld\n",
+				PTR_ERR(reg_l2));
+			return -ENODEV;
+		}
+		rc = regulator_set_voltage(reg_l2, 1200000, 1200000);
+		if (rc) {
+			pr_err("set_voltage l2 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+
+		//Enable LDO_2V8 which is controlled by GPIO 12
+		rc = gpio_request(DISP_LDO2V8_GPIO, "disp_ldo_2v8_n");
+		if (rc) {
+			pr_err("request gpio DISP_LDO2V8_GPIO failed, rc=%d\n",
+				rc);
+			gpio_free(DISP_LDO2V8_GPIO);
+			return -ENODEV;
+		}
+
+		
+		rc = gpio_tlmm_config(GPIO_CFG(DISP_LDO2V8_GPIO, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		if (rc) 
+		{
+			printk("%s: gpio_tlmm_config  DISP_LDO2V8_GPIO failed(%d)\n",  __func__, rc);
+		}
+		
+		gpio_set_value(DISP_LDO2V8_GPIO, 1);
+
+		rc = gpio_request(DISP_RST_GPIO, "disp_rst_n");
+		if (rc) {
+			pr_err("request gpio DISP_RST_GPIO failed, rc=%d\n",
+				rc);
+			gpio_free(DISP_RST_GPIO);
+			return -ENODEV;
+		}
+
+		rc = gpio_tlmm_config(GPIO_CFG(DISP_RST_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		if (rc) 
+		{
+			printk("%s: gpio_tlmm_config  DISP_RST_GPIO failed(%d)\n",  __func__, rc);
+		}
+
+		gpio_set_value(DISP_RST_GPIO, 0);
+
+		dsi_power_on = true;
+	}
+	if (on) {
+		/*
+		rc = regulator_set_optimum_mode(reg_l23, 100000);
+		if (rc < 0) {
+			pr_err("set_optimum_mode l23 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+		rc = regulator_set_optimum_mode(reg_l2, 100000);
+		if (rc < 0) {
+			pr_err("set_optimum_mode l2 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}*/
+		
+		msm_xo_mode_vote(cxo_clock, MSM_XO_MODE_ON); 
+
+		rc = regulator_enable(reg_l23);
+		if (rc) {
+			pr_err("enable l23 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+		rc = regulator_enable(reg_l2);
+		if (rc) {
+			pr_err("enable l2 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+
+
+		rc = gpio_tlmm_config(GPIO_CFG(DISP_LDO2V8_GPIO, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		if (rc) 
+		{
+			printk("%s: gpio_tlmm_config  DISP_LDO2V8_GPIO failed(%d)\n",  __func__, rc);
+		}
+		
+		gpio_set_value(DISP_LDO2V8_GPIO, 1);
+		
+
+		gpio_set_value(DISP_RST_GPIO, 1);
+		mdelay(1);
+		gpio_set_value(DISP_RST_GPIO, 0);
+		mdelay(50);
+		gpio_set_value(DISP_RST_GPIO, 1);
+		mdelay(5);
+
+		msm_xo_mode_vote(cxo_clock, MSM_XO_MODE_OFF);
+	} else {
+
+		//Pull Low GPIO 12 for suspend-->
+
+		gpio_set_value(DISP_RST_GPIO, 0);
+
+		rc = gpio_tlmm_config(GPIO_CFG(DISP_LDO2V8_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		if (rc) 
+		{
+			printk("%s: gpio_tlmm_config  DISP_LDO2V8_GPIO failed(%d)\n",  __func__, rc);
+		}
+		
+		gpio_set_value(DISP_LDO2V8_GPIO, 0);
+		//Pull Low GPIO 12 for suspend<--
+		
+		mdelay(240);
+		rc = regulator_disable(reg_l23);
+		if (rc) {
+			pr_err("disable reg_l23 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+		rc = regulator_disable(reg_l2);
+		if (rc) {
+			pr_err("disable reg_l2 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+
+		rc = regulator_set_optimum_mode(reg_l23, 100);
+		if (rc < 0) {
+			pr_err("set_optimum_mode l23 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+		rc = regulator_set_optimum_mode(reg_l2, 100);
+		if (rc < 0) {
+			pr_err("set_optimum_mode l2 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+#else //Samsung FWVGA Display Driver--Taylor
 static struct mipi_dsi_panel_platform_data novatek_pdata;
 static void pm8917_gpio_set_backlight(int bl_level)
 {
@@ -321,13 +677,37 @@ static int mipi_dsi_cdp_panel_power(int on)
 	}
 	return 0;
 }
+#endif
+//Display Driver--Taylor--20120622--E
 
+//CCI Taylopr, display driver porting 2012,0707
+//Display Driver--Taylor--20120622--B
+#ifdef CONFIG_FB_MSM_MIPI_SA77_CMD_FWVGA_PANEL
+static int mipi_dsi_panel_power(int on)
+{
+	int flag_on = !!on;
+	static int mipi_power_save_on;
+
+	printk(KERN_ERR "MIPI::%s: \n", __func__);
+
+	if (mipi_power_save_on == flag_on)
+		return 0;
+
+	mipi_power_save_on = flag_on;
+	if (display_id == 0)
+		return mipi_dsi_samsung_panel_power(on);
+	else
+		return mipi_dsi_chimei_panel_power(on);
+}
+#else //Display Driver--Taylor
 static int mipi_dsi_panel_power(int on)
 {
 	pr_debug("%s: on=%d\n", __func__, on);
 
 	return mipi_dsi_cdp_panel_power(on);
 }
+#endif
+//Display Driver--Taylor--20120622--E
 
 static struct mipi_dsi_platform_data mipi_dsi_pdata = {
 	.vsync_gpio = MDP_VSYNC_GPIO,
@@ -511,6 +891,8 @@ static struct platform_device mipi_dsi_NT35590_panel_device = {
 	/* todo: add any platform data */
 };
 
+//CCI Taylopr, display driver porting 2012,0707
+#ifdef CONFIG_FB_MSM_MIPI_NOVATEK_CMD_QHD_PT //Taylor--Display--B
 #define FPGA_3D_GPIO_CONFIG_ADDR	0xB5
 
 static struct mipi_dsi_phy_ctrl dsi_novatek_cmd_mode_phy_db = {
@@ -543,6 +925,37 @@ static struct platform_device mipi_dsi_novatek_panel_device = {
 		.platform_data = &novatek_pdata,
 	}
 };
+#endif //Taylor--Display--B
+
+//CCI Taylopr, display driver porting 2012,0707
+//Display Driver--Taylor--20120622--B
+#ifdef CONFIG_FB_MSM_MIPI_SA77_CMD_FWVGA_PANEL
+//SAMSUNG
+static struct mipi_dsi_panel_platform_data samsung_pdata = {
+	.enable_wled_bl_ctrl = 0x1,
+};
+
+static struct platform_device mipi_dsi_cmd_samsung_fwvga_panel_device = {
+	.name = "dsi_cmd_samsung_fwvga",
+	.id = 0,
+	.dev = {
+		.platform_data = &samsung_pdata,
+	}
+};
+//CHIMEI
+static struct mipi_dsi_panel_platform_data chimei_pdata = {
+	.enable_wled_bl_ctrl = 0x1,
+};
+
+static struct platform_device mipi_dsi_cmd_chimei_fwvga_panel_device = {
+	.name = "dsi_cmd_chimei_fwvga",
+	.id = 0,
+	.dev = {
+		.platform_data = &chimei_pdata,
+	}
+};
+#endif
+//Display Driver--Taylor--20120622--E
 
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 static struct resource hdmi_msm_resources[] = {
@@ -608,6 +1021,7 @@ static struct platform_device wfd_device = {
 #endif
 
 #ifdef CONFIG_MSM_BUS_SCALING
+#ifdef CONFIG_FB_MSM_DTV //Turn off HDMI feature--Taylor--20120725--B
 static struct msm_bus_vectors dtv_bus_init_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_MDP_PORT0,
@@ -657,6 +1071,7 @@ static struct lcdc_platform_data dtv_pdata = {
 	.bus_scale_table = &dtv_bus_scale_pdata,
 	.lcdc_power_save = hdmi_panel_power,
 };
+#endif //Turn off HDMI feature--Taylor--20120725--E
 #endif
 
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
@@ -859,7 +1274,18 @@ void __init msm8930_init_fb(void)
 	platform_device_register(&wfd_device);
 #endif
 
+//CCI Taylor, display driver porting 2012,0707
+#ifdef CONFIG_FB_MSM_MIPI_NOVATEK_CMD_QHD_PT //Taylor--Display--B
 	platform_device_register(&mipi_dsi_novatek_panel_device);
+#endif//Taylor--Display--E
+
+//CCI Taylor, display driver porting 2012,0707
+//Display Driver--Taylor--20120622--B
+#ifdef CONFIG_FB_MSM_MIPI_SA77_CMD_FWVGA_PANEL
+	platform_device_register(&mipi_dsi_cmd_chimei_fwvga_panel_device);
+	platform_device_register(&mipi_dsi_cmd_samsung_fwvga_panel_device);
+#endif
+//Display Driver--Taylor--20120622--E
 
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 	platform_device_register(&hdmi_msm_device);
@@ -870,7 +1296,9 @@ void __init msm8930_init_fb(void)
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("mipi_dsi", &mipi_dsi_pdata);
 #ifdef CONFIG_MSM_BUS_SCALING
+#ifdef CONFIG_FB_MSM_DTV //Turn off HDMI feature--Taylor--20120725--B
 	msm_fb_register_device("dtv", &dtv_pdata);
+#endif //Turn off HDMI feature--Taylor--20120725--E
 #endif
 }
 

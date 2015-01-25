@@ -142,3 +142,8 @@ obj-$(CONFIG_PM_DEVFREQ)	+= devfreq/
 obj-$(CONFIG_MOBICORE_SUPPORT)  += gud/
 
 obj-$(CONFIG_CORESIGHT)		+= coresight/
+
+#[SA77] ==> CCI KLog, added by Jimmy@CCI
+obj-$(CONFIG_CCI_DRIVERS)       += cci/
+#[SA77] <== CCI KLog, added by Jimmy@CCI
+

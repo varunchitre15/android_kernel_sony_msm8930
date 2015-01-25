@@ -85,7 +85,13 @@ static int32_t msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 					i2c_byte2 = (value & 0xFF00) >> 8;
 				}
 			} else {
+/*B:[bug328] af porting, cloony 20120807 */
+#ifdef ORG_VER
 				i2c_byte1 = (value & 0xFF00) >> 8;
+#else
+				i2c_byte1 = ((value & 0x0300) >> 8) | 0xC0;
+#endif// ORG_VER
+/*E:[bug328] af porting, cloony 20120807 */
 				i2c_byte2 = value & 0xFF;
 			}
 		} else {

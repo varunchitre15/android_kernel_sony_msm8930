@@ -1,0 +1,3 @@
+config CCI_SOMC_XSSM
+	tristate "CCI somc xssm support"
+	default y

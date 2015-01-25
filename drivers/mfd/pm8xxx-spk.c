@@ -1,4 +1,5 @@
 /* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -70,6 +71,7 @@ static int pm8xxx_spk_bank_write(u16 reg, u16 bank, u8 val)
 
 	bank_val |= (val & PM8XXX_SPK_BANK_VAL_MASK);
 	mutex_lock(&the_spk_chip->spk_mutex);
+	pr_debug("%s(): reg:%x, val:%x\n", __func__, reg, bank_val);  // BAM_S C 130530 [Mig:]
 	rc = pm8xxx_writeb(the_spk_chip->dev->parent, reg, bank_val);
 	if (rc)
 		pr_err("pm8xxx_writeb(): rc=%d\n", rc);
@@ -100,6 +102,7 @@ static int pm8xxx_spk_write(u16 addr, u8 val)
 	int rc = 0;
 
 	mutex_lock(&the_spk_chip->spk_mutex);
+	pr_debug("%s(): addr:%x(%x,%x), val:%x\n", __func__, the_spk_chip->base + addr, the_spk_chip->base, addr, val); // BAM_S C 130530 [Mig:]
 	rc = pm8xxx_writeb(the_spk_chip->dev->parent,
 			the_spk_chip->base + addr, val);
 	if (rc)
@@ -120,7 +123,7 @@ int pm8xxx_spk_mute(bool mute)
 	val = pm8xxx_spk_read(PM8XXX_SPK_CTL1_REG_OFF);
 	if (val < 0)
 		return val;
-	val |= mute << 2;
+	val = (mute << 2) | (val & 0xfb); // BAM_S C 130530 [Mig:]
 	ret = pm8xxx_spk_write(PM8XXX_SPK_CTL1_REG_OFF, val);
 	return ret;
 }
@@ -139,7 +142,7 @@ int pm8xxx_spk_gain(u8 gain)
 	val = pm8xxx_spk_read(PM8XXX_SPK_CTL1_REG_OFF);
 	if (val < 0)
 		return val;
-	val |= (gain << 4);
+	val = (gain << 4) | (val & 0xF); // BAM_S C 130530 [Mig:]	
 	ret = pm8xxx_spk_write(PM8XXX_SPK_CTL1_REG_OFF, val);
 	if (!ret) {
 		pm8xxx_spk_bank_write(the_spk_chip->base

@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -36,6 +37,25 @@
 #include <mach/subsystem_restart.h>
 
 #include "smd_private.h"
+
+long system_flag = inactive;
+#include <mach/msm_iomap.h>
+#ifdef CONFIG_CCI_KLOG
+extern long* powerpt;
+extern long* unknowflag;
+extern long* backupcrashflag;
+#endif
+extern void set_warmboot(void);
+extern void *restart_reason;
+#define CONFIG_WARMBOOT_CRASH       0xC0DEDEAD
+#define CONFIG_WARMBOOT_NONE        0x00000000
+#define CONFIG_WARMBOOT_NORMAL     	0x77665501
+
+
+#ifdef CONFIG_CCI_KLOG
+#include <linux/cciklog.h>
+#endif // #ifdef CONFIG_CCI_KLOG
+
 
 struct subsys_soc_restart_order {
 	const char * const *subsystem_list;
@@ -449,6 +469,11 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 
 	pr_debug("[%p]: Released powerup lock!\n", current);
 
+	system_flag = inactive;
+#ifdef CONFIG_CCI_KLOG	
+	*powerpt = POWERONOFFRECORD;
+#endif	
+
 out:
 	spin_lock_irqsave(&dev->restart_lock, flags);
 	dev->restarting = false;
@@ -501,6 +526,35 @@ int subsystem_restart_dev(struct subsys_device *dev)
 	pr_info("Restart sequence requested for %s, restart_level = %d.\n",
 		name, restart_level);
 
+	if((inactive == system_flag) || (normalreboot == system_flag) || (adloadmode == system_flag) ||(poweroff == system_flag))
+	{
+        if(!strcmp(name,"gss"))
+	        system_flag = gssfatal;
+        else if(!strcmp(name,"modem"))
+	        system_flag = modemfatal;
+        else if(!strcmp(name,"lpass"))
+	        system_flag = lpassfatal;
+        else if(!strcmp(name,"external-modem"))
+	        system_flag = exmodemfatal;
+        else if(!strcmp(name,"dsps"))
+	        system_flag = dspsfatal;
+        else if(!strcmp(name,"riva"))
+	        system_flag = rivafatal;
+#ifdef CONFIG_CCI_KLOG			
+		*powerpt = (POWERONOFFRECORD + system_flag);
+#endif		
+	}
+
+
+#ifdef CONFIG_CCI_KLOG
+//modem fatal error
+#if CCI_KLOG_CRASH_SIZE
+	set_fault_state(0x5, restart_level, name);
+#endif // #if CCI_KLOG_CRASH_SIZE
+	cklc_save_magic(KLOG_MAGIC_MARM_FATAL, KLOG_STATE_MARM_FATAL);
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 	switch (restart_level) {
 
 	case RESET_SUBSYS_COUPLED:
@@ -508,11 +562,43 @@ int subsystem_restart_dev(struct subsys_device *dev)
 		__subsystem_restart_dev(dev);
 		break;
 	case RESET_SOC:
+	{
+#ifdef CONFIG_CCI_KLOG			
+	    *powerpt = (POWERONOFFRECORD + system_flag);
+		*unknowflag = 0;
+		*backupcrashflag = 0;
+
+		set_warmboot();
+#ifdef CCI_KLOG_ALLOW_FORCE_PANIC			
+		__raw_writel(CONFIG_WARMBOOT_CRASH, restart_reason);
+#else
+		__raw_writel(CONFIG_WARMBOOT_NORMAL, restart_reason);
+		*backupcrashflag = CONFIG_WARMBOOT_CRASH;
+#endif
+#endif	
+		mb();
 		panic("subsys-restart: Resetting the SoC - %s crashed.", name);
 		break;
+	}
 	default:
+	{
+#ifdef CONFIG_CCI_KLOG			
+	    *powerpt = (POWERONOFFRECORD + system_flag);
+		*unknowflag = 0;
+		*backupcrashflag = 0;
+	
+		set_warmboot();
+#ifdef CCI_KLOG_ALLOW_FORCE_PANIC			
+		__raw_writel(CONFIG_WARMBOOT_CRASH, restart_reason);
+#else
+		__raw_writel(CONFIG_WARMBOOT_NORMAL, restart_reason);
+		*backupcrashflag = CONFIG_WARMBOOT_CRASH;
+#endif
+#endif	
+		mb();
 		panic("subsys-restart: Unknown restart level!\n");
 		break;
+	}
 	}
 
 	return 0;

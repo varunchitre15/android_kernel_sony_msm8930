@@ -1046,7 +1046,7 @@ int sps_bam_pipe_set_params(struct sps_bam *dev, u32 pipe_index, u32 options)
 
 		if (pipe->desc_size + size <= PAGE_SIZE)
 			pipe->sys.desc_cache =
-				kzalloc(pipe->desc_size + size, GFP_KERNEL);
+				kzalloc(pipe->desc_size + size, GFP_ATOMIC);
 		else {
 			pipe->sys.desc_cache =
 				vmalloc(pipe->desc_size + size);

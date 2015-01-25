@@ -79,8 +79,9 @@
 #define WLED_8_BIT_MASK			0xFF
 #define WLED_4_BIT_MASK			0x0F
 #define WLED_8_BIT_SHFT			0x08
+//#define WLED_MAX_DUTY_CYCLE		0xFFF
+#define WLED_MAX_DUTY_CYCLE		0xC00 //Taylor--20120821
 #define WLED_4_BIT_SHFT			0x04
-#define WLED_MAX_DUTY_CYCLE		0xFFF
 
 #define WLED_RESISTOR_COMPENSATION_DEFAULT	20
 #define WLED_RESISTOR_COMPENSATION_MAX	320
@@ -144,6 +145,153 @@
 			_rgb_led_blue << PM8XXX_ID_RGB_LED_BLUE, \
 	}
 
+static int blinktuning_r[20] = {
+		0,	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0,  0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+static int blinktuning_g[20] = {
+		0,	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0,  0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+static int blinktuning_b[20] = {
+		0,	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0,  0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+static int in500out1000tunebase[20] = {
+		6, 11, 29, 42, 56, 70, 89, 100, 92, 84,
+	   76, 65, 57, 49, 40, 32, 23,  15,  7, 0
+};
+
+static int in500out1000tune_red[20] = {
+		0,	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0,  0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+static int in500out1000tune_green[20] = {
+		0,	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0,  0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+static int in500out1000tune_blue[20] = {
+		0,	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0,  0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+static int in1000out1500[50] = {
+		5, 10, 15, 20, 25, 30, 
+	   35, 40, 45, 50, 55, 60, 65, 
+	   70, 75, 80, 85, 90, 95, 100, 
+	   95, 93, 90, 88, 85, 80, 77, 
+	   74, 70, 67, 64, 60, 57, 54, 50, 
+	   47, 44, 40, 37, 34, 30, 27, 24, 
+	   20, 17, 14, 10,  7,  3,  0
+};
+/*
+static int in500out1000[50] = {
+		6, 13, 19, 25, 31, 38, 44, 
+	   50, 56, 63, 69, 75, 81, 88, 94, 100, 
+	   97, 94, 91, 88, 85, 82, 79, 76, 
+	   73, 70, 67, 64, 61, 58, 55, 52,
+	   49, 46, 43, 40, 37, 34, 31, 28,
+	   25, 22, 19, 16, 14, 12,	9,	6,
+	    3,  0
+};
+*/
+static int in800out1300[60] = {
+		4,	8, 12, 15, 20, 25, 30, 
+	   35, 40, 45, 50, 54, 58, 62, 66, 
+	   70, 74, 78, 82, 86, 90, 95, 100, 
+	   95, 93, 90, 88, 85, 83, 80, 78, 
+	   75, 73, 70, 68, 65, 63, 60, 58, 
+	   55, 50, 48, 45, 43, 40, 38, 35, 
+	   33, 30, 28, 25, 22, 19, 16, 13, 
+	   10,  8,	5,	3,	0
+};
+static int in1500out3000[60] = {
+		5, 10, 15, 20, 25, 30, 35, 40,
+	   45, 50, 55, 60, 65, 70, 75, 80,
+	   85, 90, 95, 100,
+	   98, 95, 93, 90, 88, 85, 83, 80, 
+	   78, 75, 73, 70, 68, 65, 63, 60, 
+	   58, 55, 53, 50, 48, 45, 43, 40, 
+	   38, 35, 33, 30, 28, 25, 23, 20, 
+	   18, 15, 13, 10,	8,	5,	3,	0
+};
+/*
+static int in300out700[50] = {
+		6, 12, 18, 24, 30, 36, 42,
+	   48, 55, 62, 70, 78, 87, 93,
+	  100, 97, 94, 92, 90, 87, 85,
+	   83, 80, 77, 75, 73, 70, 68,
+	   65, 63, 60, 57, 54, 51, 48,
+	   45, 42, 39, 36, 33, 30, 27,
+	   24, 21, 18, 15, 11,  7,  3,
+	    0	   
+};
+static int in625out625[50] = {
+		0,	4,  8, 12, 16, 20, 24,
+	   28, 32, 36, 40, 44, 48, 52,
+	   56, 60, 64, 68, 72, 76, 80,
+	   85, 90, 95, 100, 96, 92, 88,
+	   84, 80, 76, 72, 68, 64, 60,
+	   56, 52, 48, 44, 40, 36, 32,
+	   28, 24, 20, 16, 12,  8,  4,
+	    0	   
+};
+static int in200out1900[60] = {
+	   15, 31, 48, 65, 82, 100,
+	   98, 96, 94, 92, 90, 88, 86,
+	   84, 82, 80, 78, 76, 74, 72,
+	   70, 68, 66, 64, 62, 60, 58,
+	   56, 54, 52, 50, 48, 46, 44,
+	   42, 40, 38, 36, 34, 32, 30,
+	   28, 26, 24, 22, 20, 18, 16,
+	   14, 12, 10,  9,  8,  7,  6,
+	    5,  4,  3,  2,  0
+};
+*/
+//fade-in 500 then continuous light
+static int in500[20] = {
+		5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
+	   55, 60, 65, 70, 75, 80, 85, 90, 95, 100
+};
+//fade-out 1000
+static int out1000[20] = {
+	  100, 95, 90, 85, 80, 75, 70, 65, 60, 55,
+	   50, 45, 40, 35, 28, 21, 14,  9,  4,  0
+};
+static int fadetune_red[20] = {
+		0,	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0,  0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+static int fadetune_green[20] = {
+		0,	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0,  0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+static int fadetune_blue[20] = {
+		0,	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0,  0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+//fade-in 300, fade-out 700
+static int in300out700tunebase[20] = {
+		16,  32, 48, 64, 80, 100, 93, 86, 79, 72,
+	    65,  58, 50, 43, 35,  28, 21, 14,  7,  0
+};
+//fade-in 625, fade-out 625
+static int in625out625tunebase[20] = {
+		10,  20, 30, 40, 50, 60, 70, 80, 90, 100,
+	    90,  80, 70, 60, 50, 40, 30, 20, 10,   0
+};
+static int in200out1900tunebase[20] = {
+		50, 100, 95, 89, 83, 77, 70, 65, 60, 54,
+	    48,  42, 37, 32, 27, 22, 17, 12,  6,  0
+};
+
+//fade-in 200, fade-out 5900
+static int in200out5900tunebase[20] = {
+		50, 100, 95, 89, 83, 77, 70, 65, 60, 54,
+	    48,  42, 37, 32, 27, 22, 17, 12,  6,  0
+};
+
 #define PM8XXX_PWM_CURRENT_4MA		4
 #define PM8XXX_PWM_CURRENT_8MA		8
 #define PM8XXX_PWM_CURRENT_12MA		12
@@ -189,6 +337,9 @@ struct pm8xxx_led_data {
 	u8			blink;
 	struct device		*dev;
 	struct work_struct	work;
+	struct work_struct	modework;
+	struct work_struct	testwork;
+
 	struct mutex		lock;
 	struct pwm_device	*pwm_dev;
 	int			pwm_channel;
@@ -406,6 +557,1031 @@ led_rgb_write(struct pm8xxx_led_data *led, u16 addr, enum led_brightness value)
 			 led->id, rc);
 }
 
+static void pm8xxx_led_brightnesstest(struct led_classdev *led_cdev,
+	enum led_testbrightness testvalue)
+{
+	struct	pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+
+	//if (value < LED_OFF || value > led->cdev.max_brightness) {
+	//	dev_err(led->cdev.dev, "Invalid brightness value exceeds");
+	//	return;
+	//}
+	led->cdev.ccitest_brightness = testvalue;
+	schedule_work(&led->testwork);
+}
+
+int redledflag = 0;
+int greenledflag = 0;
+int blueledflag = 0;
+
+static int pm8xxx_led_pwm_test_work(struct pm8xxx_led_data *led)
+{
+	int duty_us;
+	int rc = 0;
+
+	if (led->pwm_duty_cycles == NULL) {
+		duty_us = (led->pwm_period_us * led->cdev.ccitest_brightness) /
+								LED_FULL;
+		switch (led->id) {
+		case PM8XXX_ID_RGB_LED_RED:
+			if(led->cdev.ccitest_brightness == 0 && redledflag == 0){
+				return rc;
+			}
+			else if(led->cdev.ccitest_brightness == 0 && redledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.ccitest_brightness);
+				redledflag = 0;
+			}
+			else if(led->cdev.ccitest_brightness != 0 && redledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.ccitest_brightness);
+				rc = pwm_enable(led->pwm_dev);
+			}
+			else {
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.ccitest_brightness);
+				rc = pwm_enable(led->pwm_dev);
+				redledflag = 1;
+			}
+			break;
+		case PM8XXX_ID_RGB_LED_GREEN:
+			if(led->cdev.ccitest_brightness == 0 && greenledflag == 0){
+				return rc;
+			}
+			else if(led->cdev.ccitest_brightness == 0 && greenledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.ccitest_brightness);
+				greenledflag = 0;
+			}
+			else if(led->cdev.ccitest_brightness != 0 && greenledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.ccitest_brightness);
+				rc = pwm_enable(led->pwm_dev);
+			}
+			else {
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.ccitest_brightness);
+				rc = pwm_enable(led->pwm_dev);
+				greenledflag = 1;
+			}
+			break;
+		case PM8XXX_ID_RGB_LED_BLUE:
+			if(led->cdev.ccitest_brightness == 0 && blueledflag == 0){
+				return rc;
+			}
+			else if(led->cdev.ccitest_brightness == 0 && blueledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.ccitest_brightness);
+				blueledflag = 0;
+				return rc;
+			}
+			else if(led->cdev.ccitest_brightness != 0 && blueledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.ccitest_brightness);
+				rc = pwm_enable(led->pwm_dev);
+			}
+			else {
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.ccitest_brightness);
+				rc = pwm_enable(led->pwm_dev);
+				blueledflag = 1;
+				return rc;
+			}
+			break;
+		default:
+			pr_err("led id %d is not supported\n", led->id);
+			break;
+		}
+		
+	} else {
+		rc = pm8xxx_pwm_lut_enable(led->pwm_dev, led->cdev.ccitest_brightness);
+	}
+	return rc;
+}
+
+static void pm8xxx_led_modeset(struct led_classdev *led_cdev,
+	enum led_op_mode modevalue)
+{
+	struct	pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+
+	//if (value < LED_OFF || value > led->cdev.max_brightness) {
+	//	dev_err(led->cdev.dev, "Invalid brightness value exceeds");
+	//	return;
+	//}
+	led->cdev.ccimode = modevalue;
+	schedule_work(&led->modework);
+}
+
+static void pm8xxx_led_onmsset(struct led_classdev *led_cdev,
+	enum led_op_onms blinkonms)
+{
+	struct	pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+	led->cdev.onMS = blinkonms*1000;
+}
+static void pm8xxx_led_offmsset(struct led_classdev *led_cdev,
+	enum led_op_offms blinkoffms)
+{
+	struct	pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+	led->cdev.offMS = blinkoffms*1000;
+}
+static enum led_op_onms pm8xxx_led_onmsget(struct led_classdev *led_cdev)
+{
+	struct pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+
+	return led->cdev.onMS;
+}
+static enum led_op_offms pm8xxx_led_offmsget(struct led_classdev *led_cdev)
+{
+	struct pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+
+	return led->cdev.offMS;
+}
+
+static void pm8xxx_led_tunebrightset(struct led_classdev *led_cdev,
+	enum led_tunebrightness tunevalue)
+{
+	struct	pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+	led->cdev.tunebrightness = tunevalue;
+}
+static enum led_tunebrightness pm8xxx_led_tunebrightget(struct led_classdev *led_cdev)
+{
+	struct pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+
+	return led->cdev.tunebrightness;
+}
+
+static void pm8xxx_led_batpaset(struct led_classdev *led_cdev,
+	enum led_batpa batpavalue)
+{
+	struct	pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+	led->cdev.batpa = batpavalue;
+}
+static enum led_batpa pm8xxx_led_batpaget(struct led_classdev *led_cdev)
+{
+	struct pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+
+	return led->cdev.batpa;
+}
+
+
+int mode = 0;
+
+int old_mode_red = 0 ;
+int old_mode_green = 0 ;
+int old_mode_blue = 0 ;
+
+static int pm8xxx_led_pwm_mode_work(struct pm8xxx_led_data *led)
+{
+	int rc = 0;
+	int flags = 0;
+
+	int leveltime = 0;
+	int onsteps = 0;
+	int i = 0;
+	int period_time = 0;
+	int blinktunvalue = 0;
+
+	mode = led->cdev.ccimode;
+	if(led->id == PM8XXX_ID_WLED){
+		pr_err("disable wled pwm_mode_work!\n");
+		return rc;
+	}	
+	if(led->id == PM8XXX_ID_RGB_LED_RED && redledflag == 1){
+		rc = pwm_config(led->pwm_dev, 0, led->pwm_period_us);
+		pwm_disable(led->pwm_dev);
+		led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+		redledflag = 0;
+	}
+	else if(led->id == PM8XXX_ID_RGB_LED_GREEN && greenledflag == 1){
+		rc = pwm_config(led->pwm_dev, 0, led->pwm_period_us);
+		pwm_disable(led->pwm_dev);
+		led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+		greenledflag = 0;
+	}
+	else if(led->id == PM8XXX_ID_RGB_LED_BLUE && blueledflag == 1){
+		rc = pwm_config(led->pwm_dev, 0, led->pwm_period_us);
+		pwm_disable(led->pwm_dev);
+		led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+		blueledflag = 0;
+	}
+	
+	if(led->id == PM8XXX_ID_RGB_LED_RED && mode !=0){
+		pr_err("set red_led old mode :%d\n",mode);
+		old_mode_red = mode;
+	}
+	else if (led->id == PM8XXX_ID_RGB_LED_GREEN && mode !=0){
+		pr_err("set green_led old mode :%d\n",mode);
+		old_mode_green = mode;
+	}
+	else if(led->id == PM8XXX_ID_RGB_LED_BLUE && mode !=0){
+		pr_err("set blue_led old mode :%d\n",mode);
+		old_mode_blue = mode;
+	}
+
+	switch(mode){
+		case 0://disable LED flashing
+			pr_err("LED mode 0:\n");
+			if(led->id == PM8XXX_ID_RGB_LED_RED && old_mode_red){
+			if(old_mode_red == 2 || old_mode_red == 3 || old_mode_red == 4 || old_mode_red == 5 ||
+				old_mode_red == 6 || old_mode_red == 7 || old_mode_red == 8 || old_mode_red == 9 ||
+				old_mode_red == 10 || old_mode_red == 11 || old_mode_red == 12 || old_mode_red == 13 ||
+				old_mode_red == 14 || old_mode_red == 15 || old_mode_red == 16 || old_mode_red == 17 ||
+				old_mode_red == 18 || old_mode_red == 19 || old_mode_red == 20 || old_mode_red == 21)
+			{
+				pr_err("old_red_mode=%d\n",old_mode_red);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 0);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+				old_mode_red = 0;
+			}}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN && old_mode_green){
+			if(old_mode_green == 2 || old_mode_green == 3 || old_mode_green == 4 || old_mode_green == 5 ||
+				old_mode_green == 6 || old_mode_green == 7 || old_mode_green == 8 || old_mode_green == 9 ||
+				old_mode_green == 10 || old_mode_green == 11 || old_mode_green == 12 || old_mode_green == 13 ||
+				old_mode_green == 14 || old_mode_green == 15 || old_mode_green == 16 || old_mode_green == 17 ||
+				old_mode_green == 18 || old_mode_green == 19 || old_mode_green == 20 || old_mode_green == 21)
+			{
+				pr_err("old_green_mode=%d\n",old_mode_green);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 0);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+				old_mode_green = 0;
+			}}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE && old_mode_blue){
+			if(old_mode_blue == 2 || old_mode_blue == 3 || old_mode_blue == 4 || old_mode_blue == 5 ||
+				old_mode_blue == 6 || old_mode_blue == 7 || old_mode_blue == 8 || old_mode_blue == 9 ||
+				old_mode_blue == 10 || old_mode_blue == 11 || old_mode_blue == 12 || old_mode_blue == 13 ||
+				old_mode_blue == 14 || old_mode_blue == 15 || old_mode_blue == 16 || old_mode_blue == 17 ||
+				old_mode_blue == 18 || old_mode_blue == 19 || old_mode_blue == 20 || old_mode_blue == 21)
+			{
+				pr_err("old_blue_mode=%d\n",old_mode_blue);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 0);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+				old_mode_blue = 0;
+			}}
+		break;
+		case 1://[LED blink]
+			pr_err("LED mode 1:\n");
+			switch (led->id){
+			case PM8XXX_ID_RGB_LED_RED:
+				if(led->cdev.brightness != 0 && redledflag == 1){
+					rc = pwm_config(led->pwm_dev, 0, led->pwm_period_us);
+					pwm_disable(led->pwm_dev);
+					led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+					rc = pwm_config(led->pwm_dev, led->cdev.onMS, led->cdev.offMS);
+					led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+					rc = pwm_enable(led->pwm_dev);
+				} else {
+					rc = pwm_config(led->pwm_dev, led->cdev.onMS, led->cdev.offMS);
+					led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+					rc = pwm_enable(led->pwm_dev);
+					redledflag = 1;
+				}				
+				break;
+			case PM8XXX_ID_RGB_LED_GREEN:
+				if(led->cdev.brightness != 0 && greenledflag == 1){
+					rc = pwm_config(led->pwm_dev, 0, led->pwm_period_us);
+					pwm_disable(led->pwm_dev);
+					led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+					rc = pwm_config(led->pwm_dev, led->cdev.onMS, led->cdev.offMS);
+					led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+					rc = pwm_enable(led->pwm_dev);
+				} else {
+					rc = pwm_config(led->pwm_dev, led->cdev.onMS, led->cdev.offMS);
+					led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+					rc = pwm_enable(led->pwm_dev);
+					greenledflag = 1;
+				}				
+				break;
+			case PM8XXX_ID_RGB_LED_BLUE:
+				if(led->cdev.brightness != 0 && blueledflag == 1){
+					rc = pwm_config(led->pwm_dev, 0, led->pwm_period_us);
+					pwm_disable(led->pwm_dev);
+					led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+					rc = pwm_config(led->pwm_dev, led->cdev.onMS, led->cdev.offMS);
+					led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+					rc = pwm_enable(led->pwm_dev);
+				} else {
+					rc = pwm_config(led->pwm_dev, led->cdev.onMS, led->cdev.offMS);
+					led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+					rc = pwm_enable(led->pwm_dev);
+					blueledflag = 1;
+				}				
+				break;
+			default :
+				pr_err("the LED ID:%d is not supported!\n",led->id);
+				break;
+			}
+		break;
+
+		case 2://[fade-in 1000ms, fade-out 1500ms]
+			pr_err("LED mode 2:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+			rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2500, in1000out1500, 50, 1, 50, 0, 0, flags);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_config() error\n", __func__);
+
+			led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				255);
+			rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_enable() error\n", __func__);
+		break;
+		case 3://[fade-in 500ms, fade-out 1000ms mix color]
+			pr_err("LED mode 3:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					in500out1000tune_red[i] = (led->cdev.tunebrightness*in500out1000tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1500, in500out1000tune_red, 75, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					in500out1000tune_green[i] = (led->cdev.tunebrightness*in500out1000tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1500, in500out1000tune_green, 75, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					in500out1000tune_blue[i] = (led->cdev.tunebrightness*in500out1000tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1500, in500out1000tune_blue, 75, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}			
+		break;
+		case 4://[fade-in 800ms, fade-out 1300ms]
+			pr_err("LED mode 4:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+			rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2100, in800out1300, 35, 1, 60, 0, 0, flags);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_config() error\n", __func__);
+
+			led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				255);
+            rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_enable() error\n", __func__);
+
+		break;
+		case 5://[fade-in 1500ms, fade-out 3000ms]
+			pr_err("LED mode 5:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+            rc = pm8xxx_pwm_lut_config(led->pwm_dev, 4500, in1500out3000, 75, 1, 60, 0, 0, flags);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_config() error\n", __func__);
+
+			led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				255);
+			rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_enable() error\n", __func__);
+			
+		break;
+		case 6://[pulse once,fade-in 1000ms, fade-out 1500ms]
+			pr_err("LED mode 6:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP;
+			rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2500, in1000out1500, 50, 1, 50, 0, 0, flags);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_config() error\n", __func__);
+
+			led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				255);
+			rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_enable() error\n", __func__);
+		break;
+		case 7://[pulse once,fade-in 500ms, fade-out 1000ms mix color]
+			pr_err("LED mode 7:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					in500out1000tune_red[i] = (led->cdev.tunebrightness*in500out1000tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1500, in500out1000tune_red, 75, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					in500out1000tune_green[i] = (led->cdev.tunebrightness*in500out1000tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1500, in500out1000tune_green, 75, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					in500out1000tune_blue[i] = (led->cdev.tunebrightness*in500out1000tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1500, in500out1000tune_blue, 75, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}	
+		break;
+		case 8://[pulse once,fade-in 800ms, fade-out 1300ms]
+			pr_err("LED mode 8:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP;
+			rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2100, in800out1300, 35, 1, 60, 0, 0, flags);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_config() error\n", __func__);
+
+			led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				255);
+			rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_enable() error\n", __func__);
+
+		break;
+		case 9://[pulse once,fade-in 1500ms, fade-out 3000ms]
+			pr_err("LED mode 9:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP;
+            rc = pm8xxx_pwm_lut_config(led->pwm_dev, 4500, in1500out3000, 75, 1, 60, 0, 0, flags);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_config() error\n", __func__);
+
+			led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				255);
+            rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+            if (rc)
+                printk("%s: pm8xxx_pwm_lut_enable() error\n", __func__);
+			
+		break;
+		case 10://[LED blink tuning mode]
+			pr_err("LED mode 10:\n");
+			leveltime = (led->cdev.onMS+led->cdev.offMS) / 20;
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+			
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				onsteps = led->cdev.onMS / leveltime;
+				if((onsteps == 0) && led->cdev.onMS != 0){
+					onsteps = 1;
+				}
+				blinktunvalue = (led->cdev.tunebrightness*100)/255;
+				for (i = 0; i<onsteps ; i++)
+				{
+					blinktuning_r[i] = blinktunvalue;
+				}
+				leveltime = leveltime / 1000;
+				period_time = leveltime*13;
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, period_time, blinktuning_r, leveltime, 1, 13, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				onsteps = led->cdev.onMS / leveltime;
+				if((onsteps == 0) && led->cdev.onMS != 0){
+					onsteps = 1;
+				}
+				blinktunvalue = (led->cdev.tunebrightness*100)/255;
+				for (i = 0; i<onsteps ; i++)
+				{
+					blinktuning_g[i] = blinktunvalue;
+				}
+				leveltime = leveltime / 1000;
+				period_time = leveltime*13;
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, period_time, blinktuning_g, leveltime, 21, 13, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				onsteps = led->cdev.onMS / leveltime;
+				if((onsteps == 0) && led->cdev.onMS != 0){
+					onsteps = 1;
+				}
+				blinktunvalue = (led->cdev.tunebrightness*100)/255;
+				for (i = 0; i<onsteps ; i++)
+				{
+					blinktuning_b[i] = blinktunvalue;
+				}
+				leveltime = leveltime / 1000;
+				period_time = leveltime*13;
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, period_time, blinktuning_b, leveltime, 41, 13, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+
+			}
+			for (i = 0; i<20 ; i++)
+			{
+				blinktuning_r[i] = 0;
+				blinktuning_g[i] = 0;
+				blinktuning_b[i] = 0;
+			}
+		break;
+		case 11://[fade-in 500ms, fade-out 1000ms tuning mode]
+			pr_err("LED mode 11:\n");
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					in500out1000tune_red[i] = (led->cdev.tunebrightness*in500out1000tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1500, in500out1000tune_red, 75, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					in500out1000tune_green[i] = (led->cdev.tunebrightness*in500out1000tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1500, in500out1000tune_green, 75, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					in500out1000tune_blue[i] = (led->cdev.tunebrightness*in500out1000tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1500, in500out1000tune_blue, 75, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+			}			
+		break;
+		case 12://[fade-in 300ms, fade-out 700ms mix color]
+			pr_err("LED mode 12:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*in300out700tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1000, fadetune_red, 50, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*in300out700tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1000, fadetune_green, 50, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*in300out700tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1000, fadetune_blue, 50, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}
+		break;
+		case 13://[fade-in 625ms, fade-out 625ms mix color]
+			pr_err("LED mode 13:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*in625out625tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1260, fadetune_red, 63, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*in625out625tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1260, fadetune_green, 63, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*in625out625tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1260, fadetune_blue, 63, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}
+		break;
+		case 14://[fade-in 200ms, fade-out 1900ms mix color]
+			pr_err("LED mode 14:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*in200out1900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2100, fadetune_red, 105, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*in200out1900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2100, fadetune_green, 105, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*in200out1900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2100, fadetune_blue, 105, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}
+
+		break;
+		case 15://[pulse once, fade-in 300ms, fade-out 700ms mix color]
+			pr_err("LED mode 15:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*in300out700tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1000, fadetune_red, 50, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*in300out700tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1000, fadetune_green, 50, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*in300out700tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1000, fadetune_blue, 50, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}
+		break;
+		case 16://[pulse once, fade-in 625ms, fade-out 625ms mix color]
+			pr_err("LED mode 16:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*in625out625tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1260, fadetune_red, 63, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*in625out625tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1260, fadetune_green, 63, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*in625out625tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1260, fadetune_blue, 63, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}
+
+		break;
+		case 17://[pulse once, fade-in 200ms, fade-out 1900ms mix color]
+			pr_err("LED mode 17:\n");
+
+			flags = PM_PWM_LUT_RAMP_UP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*in200out1900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2100, fadetune_red, 105, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*in200out1900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2100, fadetune_green, 105, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*in200out1900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 2100, fadetune_blue, 105, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}
+
+		break;
+		case 18://[fade-in 500ms then continuous light with mix color]
+			pr_err("LED mode 18:\n");
+			flags = PM_PWM_LUT_RAMP_UP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*in500[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 500, fadetune_red, 25, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*in500[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 500, fadetune_green, 25, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*in500[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 500, fadetune_blue, 25, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}			
+		break;
+		case 19://[fade-out 1000ms with mix color]
+			pr_err("LED mode 19:\n");
+			flags = PM_PWM_LUT_RAMP_UP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*out1000[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1000, fadetune_red, 50, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*out1000[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1000, fadetune_green, 50, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*out1000[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 1000, fadetune_blue, 50, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}			
+		break;
+		case 20://[fade-in 200ms, fade-out 5900ms mix color continuously]
+			pr_err("LED mode 20:\n");
+			flags = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_LOOP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*in200out5900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 6100, fadetune_red, 305, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*in200out5900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 6100, fadetune_green, 305, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*in200out5900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 6100, fadetune_blue, 305, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}			
+		break;
+		case 21://[fade-in 200ms, fade-out 5900ms mix color pulse once]
+			pr_err("LED mode 21:\n");
+			flags = PM_PWM_LUT_RAMP_UP;
+			if(led->id == PM8XXX_ID_RGB_LED_RED){
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = (led->cdev.tunebrightness*in200out5900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 6100, fadetune_red, 305, 1, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_red[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_GREEN){
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = (led->cdev.tunebrightness*in200out5900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 6100, fadetune_green, 305, 21, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_green[i] = 0;
+				}
+			}
+			else if(led->id == PM8XXX_ID_RGB_LED_BLUE){
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = (led->cdev.tunebrightness*in200out5900tunebase[i])/255;
+				}
+				rc = pm8xxx_pwm_lut_config(led->pwm_dev, 6100, fadetune_blue, 305, 41, 20, 0, 0, flags);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+					255);
+				rc = pm8xxx_pwm_lut_enable(led->pwm_dev, 1);
+				for (i=0; i<20 ; i++){
+					fadetune_blue[i] = 0;
+				}
+			}			
+		break;
+		default:
+			pr_err("no mode match!\n");
+		break;
+	}
+	return rc;
+}
+
 static void
 led_rgb_set(struct pm8xxx_led_data *led, enum led_brightness value)
 {
@@ -528,6 +1704,7 @@ static int pm8xxx_led_pwm_pattern_update(struct pm8xxx_led_data * led)
 	return rc;
 }
 
+#ifdef ORG_VER
 static int pm8xxx_led_pwm_work(struct pm8xxx_led_data *led)
 {
 	int duty_us;
@@ -561,6 +1738,124 @@ static int pm8xxx_led_pwm_work(struct pm8xxx_led_data *led)
 
 	return rc;
 }
+#else
+static int pm8xxx_led_pwm_work(struct pm8xxx_led_data *led)
+{
+	int duty_us;
+	int rc = 0;
+	int level = 0;
+	
+	level = pm8xxx_adjust_brightness(&led->cdev, led->cdev.brightness);
+
+	if (led->pwm_duty_cycles == NULL) {
+		duty_us = (led->pwm_period_us * led->cdev.brightness) /
+								LED_FULL;
+		//duty_us = (led->pwm_period_us * level) / LED_FULL;
+		switch (led->id) {
+		case PM8XXX_ID_RGB_LED_RED:
+			if(led->cdev.brightness == 0 && redledflag == 0){
+				return rc;
+			}
+			else if(led->cdev.brightness == 0 && redledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.brightness);
+				redledflag = 0;
+			}
+			else if(led->cdev.brightness != 0 && redledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.brightness);
+				rc = pwm_enable(led->pwm_dev);
+			}
+			else {
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.brightness);
+				rc = pwm_enable(led->pwm_dev);
+				redledflag = 1;
+			}
+			break;
+		case PM8XXX_ID_RGB_LED_GREEN:
+			if(led->cdev.brightness == 0 && greenledflag == 0){
+				return rc;
+			}
+			else if(led->cdev.brightness == 0 && greenledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.brightness);
+				greenledflag = 0;
+			}
+			else if(led->cdev.brightness != 0 && greenledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.brightness);
+				rc = pwm_enable(led->pwm_dev);
+			}
+			else {
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.brightness);
+				rc = pwm_enable(led->pwm_dev);
+				greenledflag = 1;
+			}
+			break;
+		case PM8XXX_ID_RGB_LED_BLUE:
+			if(led->cdev.brightness == 0 && blueledflag == 0){
+				return rc;
+			}
+			else if(led->cdev.brightness == 0 && blueledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.brightness);
+				blueledflag = 0;
+				return rc;
+			}
+			else if(led->cdev.brightness != 0 && blueledflag == 1){
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				pwm_disable(led->pwm_dev);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, 0);
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.brightness);
+				rc = pwm_enable(led->pwm_dev);
+			}
+			else {
+				rc = pwm_config(led->pwm_dev, duty_us, led->pwm_period_us);
+				led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1,
+				led->cdev.brightness);
+				rc = pwm_enable(led->pwm_dev);
+				blueledflag = 1;
+				return rc;
+			}
+			break;
+		default:
+			pr_err("led id %d is not supported\n", led->id);
+			break;
+		}
+		
+	} else {
+		if (level) {
+			pm8xxx_led_pwm_pattern_update(led);
+			led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, level);
+		}
+
+		rc = pm8xxx_pwm_lut_enable(led->pwm_dev, level);
+		if (!level)
+			led_rgb_write(led, SSBI_REG_ADDR_RGB_CNTL1, level);
+	}
+	return rc;
+}
+#endif
 
 static void __pm8xxx_led_work(struct pm8xxx_led_data *led,
 					enum led_brightness value)
@@ -618,6 +1913,49 @@ static void pm8xxx_led_work(struct work_struct *work)
 		__pm8xxx_led_work(led, led->cdev.brightness);
 	} else {
 		rc = pm8xxx_led_pwm_work(led);
+		if (rc)
+			pr_err("could not configure PWM mode for LED:%d\n",
+								led->id);
+	}
+}
+
+static void pm8xxx_mode_work(struct work_struct *work)
+{
+	int rc;
+
+	struct pm8xxx_led_data *led = container_of(work,
+					 struct pm8xxx_led_data, modework);
+	
+	if (led->pwm_dev == NULL) {
+		__pm8xxx_led_work(led, led->cdev.brightness);
+	} else {
+		rc = pm8xxx_led_pwm_mode_work(led);
+		if (rc)
+			pr_err("could not configure PWM mode for LED:%d\n",
+								led->id);
+	}
+}
+
+static enum led_op_mode pm8xxx_ledmode_get(struct led_classdev *led_cdev)
+{
+	struct pm8xxx_led_data *led;
+
+	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+
+	return led->cdev.ccimode;
+}
+
+static void pm8xxx_test_work(struct work_struct *work)
+{
+	int rc;
+
+	struct pm8xxx_led_data *led = container_of(work,
+					 struct pm8xxx_led_data, testwork);
+	
+	if (led->pwm_dev == NULL) {
+		__pm8xxx_led_work(led, led->cdev.ccitest_brightness);
+	} else {
+		rc = pm8xxx_led_pwm_test_work(led);
 		if (rc)
 			pr_err("could not configure PWM mode for LED:%d\n",
 								led->id);
@@ -1257,6 +2595,17 @@ static int __devinit pm8xxx_led_probe(struct platform_device *pdev)
 		led_dat->cdev.brightness	= LED_OFF;
 		led_dat->cdev.flags		= curr_led->flags;
 		led_dat->dev			= &pdev->dev;
+		led_dat->cdev.mode_set          = pm8xxx_led_modeset;
+		led_dat->cdev.blinkonms_set     = pm8xxx_led_onmsset;
+		led_dat->cdev.blinkoffms_set    = pm8xxx_led_offmsset;
+		led_dat->cdev.onms_get    = pm8xxx_led_onmsget;
+		led_dat->cdev.offms_get   = pm8xxx_led_offmsget;
+		led_dat->cdev.mode_get          = pm8xxx_ledmode_get;
+		led_dat->cdev.testbrightness_set = pm8xxx_led_brightnesstest;
+		led_dat->cdev.tunebrightness_set = pm8xxx_led_tunebrightset;
+		led_dat->cdev.tunebrightness_get = pm8xxx_led_tunebrightget;
+		led_dat->cdev.batpa_set = pm8xxx_led_batpaset;
+		led_dat->cdev.batpa_get = pm8xxx_led_batpaget;
 
 		rc =  get_init_value(led_dat, &led_dat->reg);
 		if (rc < 0)
@@ -1269,6 +2618,8 @@ static int __devinit pm8xxx_led_probe(struct platform_device *pdev)
 
 		mutex_init(&led_dat->lock);
 		INIT_WORK(&led_dat->work, pm8xxx_led_work);
+		INIT_WORK(&led_dat->modework, pm8xxx_mode_work);
+		INIT_WORK(&led_dat->testwork, pm8xxx_test_work);
 
 		rc = led_classdev_register(&pdev->dev, &led_dat->cdev);
 		if (rc) {
@@ -1278,8 +2629,14 @@ static int __devinit pm8xxx_led_probe(struct platform_device *pdev)
 		}
 
 		/* configure default state */
-		if (led_cfg->default_state)
-			led_dat->cdev.brightness = led_dat->cdev.max_brightness;
+		if (led_cfg->default_state) {//Taylor--20120907-->B
+			if (led_cfg->mode == PM8XXX_LED_MODE_MANUAL) {
+				led_dat->cdev.brightness = led_dat->cdev.max_brightness/3;
+			}
+			else
+				led_dat->cdev.brightness = led_dat->cdev.max_brightness;
+
+		}//<--E
 		else
 			led_dat->cdev.brightness = LED_OFF;
 
@@ -1365,6 +2722,8 @@ static int __devexit pm8xxx_led_remove(struct platform_device *pdev)
 	struct pm8xxx_led_data *led = platform_get_drvdata(pdev);
 
 	for (i = 0; i < pdata->num_leds; i++) {
+		cancel_work_sync(&led[i].testwork);
+		cancel_work_sync(&led[i].modework);
 		cancel_work_sync(&led[i].work);
 		mutex_destroy(&led[i].lock);
 		led_classdev_unregister(&led[i].cdev);

@@ -232,6 +232,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int array_size = ARRAY_SIZE(lowmem_adj);
 	int other_free;
 	int other_file;
+	int average_free;
 	unsigned long nr_to_scan = sc->nr_to_scan;
 
 	if (nr_to_scan > 0) {
@@ -245,21 +246,25 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 
 	tune_lmk_param(&other_free, &other_file, sc);
 
+	average_free = (other_free + other_file) >> 1;
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if (lowmem_minfree_size < array_size)
 		array_size = lowmem_minfree_size;
 	for (i = 0; i < array_size; i++) {
-		if (other_free < lowmem_minfree[i] &&
-		    other_file < lowmem_minfree[i]) {
+		if (average_free < lowmem_minfree[i]) {
 			min_score_adj = lowmem_adj[i];
 			break;
 		}
 	}
+
+	if (other_file < 256) {
+		min_score_adj = lowmem_adj[0] + 1;
+	}
 	if (nr_to_scan > 0)
-		lowmem_print(3, "lowmem_shrink %lu, %x, ofree %d %d, ma %d\n",
+		lowmem_print(2, "lowmem_shrink %lu, %x, ofree %d %d %d, ma %d\n",
 				nr_to_scan, sc->gfp_mask, other_free,
-				other_file, min_score_adj);
+				other_file, average_free, min_score_adj);
 	rem = global_page_state(NR_ACTIVE_ANON) +
 		global_page_state(NR_ACTIVE_FILE) +
 		global_page_state(NR_INACTIVE_ANON) +

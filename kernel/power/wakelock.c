@@ -31,7 +31,13 @@ enum {
 	DEBUG_EXPIRE = 1U << 3,
 	DEBUG_WAKE_LOCK = 1U << 4,
 };
+
+#ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP | DEBUG_SUSPEND;
+#else // #ifdef CONFIG_CCI_PM_WAKELOCK_LOG
 static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP;
+#endif // #ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define WAKE_LOCK_TYPE_MASK              (0x0f)
@@ -50,7 +56,13 @@ static struct workqueue_struct *suspend_sys_sync_work_queue;
 static DECLARE_COMPLETION(suspend_sys_sync_comp);
 struct workqueue_struct *suspend_work_queue;
 struct wake_lock main_wake_lock;
+
+#ifdef CONFIG_CCI_PM_LOG
+suspend_state_t requested_suspend_state = PM_SUSPEND_BOOTING;
+#else // #ifdef CONFIG_CCI_PM_LOG
 suspend_state_t requested_suspend_state = PM_SUSPEND_MEM;
+#endif // #ifdef CONFIG_CCI_PM_LOG
+
 static struct wake_lock unknown_wakeup;
 static struct wake_lock suspend_backoff_lock;
 
@@ -63,6 +75,19 @@ static unsigned suspend_short_count;
 static struct wake_lock deleted_wake_locks;
 static ktime_t last_sleep_time_update;
 static int wait_for_wakeup;
+
+
+#ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+static void print_active_locks(int type);
+#ifdef CONFIG_CCI_PM_ACTIVE_WAKELOCK_LOG_PERIOD
+static unsigned int cci_pm_active_wakelock_log_period = CONFIG_CCI_PM_ACTIVE_WAKELOCK_LOG_PERIOD;
+static struct timespec last_dump_timestamp;
+#endif // #ifdef CONFIG_CCI_PM_ACTIVE_WAKELOCK_LOG_PERIOD
+#endif // #ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+
+
+//export test//
+char export_wakeup_wake_lock[32];
 
 int get_expired_time(struct wake_lock *lock, ktime_t *expire_time)
 {
@@ -207,6 +232,13 @@ static void expire_wake_lock(struct wake_lock *lock)
 	lock->flags &= ~(WAKE_LOCK_ACTIVE | WAKE_LOCK_AUTO_EXPIRE);
 	list_del(&lock->link);
 	list_add(&lock->link, &inactive_locks);
+
+
+#ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+	print_active_locks(WAKE_LOCK_SUSPEND);
+#endif // #ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+
+
 	if (debug_mask & (DEBUG_WAKE_LOCK | DEBUG_EXPIRE))
 		pr_info("expired wake lock %s\n", lock->name);
 }
@@ -215,7 +247,28 @@ static void expire_wake_lock(struct wake_lock *lock)
 static void print_active_locks(int type)
 {
 	struct wake_lock *lock;
+
+#ifdef CONFIG_CCI_PM_ACTIVE_WAKELOCK_LOG_PERIOD
+	bool print_expired = false;
+	bool abort = false;
+
+	if(get_suspend_state() == PM_SUSPEND_MEM && current_kernel_time().tv_sec - last_dump_timestamp.tv_sec >= cci_pm_active_wakelock_log_period)
+	{
+		last_dump_timestamp = current_kernel_time();
+	}
+	else
+	{
+		abort = true;
+	}
+
+	if(abort)
+	{
+		return;
+	}
+#else // #ifdef CONFIG_CCI_PM_ACTIVE_WAKELOCK_LOG_PERIOD
 	bool print_expired = true;
+#endif // #ifdef CONFIG_CCI_PM_ACTIVE_WAKELOCK_LOG_PERIOD
+
 
 	BUG_ON(type >= WAKE_LOCK_TYPE_COUNT);
 	list_for_each_entry(lock, &active_wake_locks[type], link) {
@@ -493,8 +546,10 @@ static void wake_lock_internal(
 	BUG_ON(!(lock->flags & WAKE_LOCK_INITIALIZED));
 #ifdef CONFIG_WAKELOCK_STAT
 	if (type == WAKE_LOCK_SUSPEND && wait_for_wakeup) {
-		if (debug_mask & DEBUG_WAKEUP)
+		if (debug_mask & DEBUG_WAKEUP){
 			pr_info("wakeup wake lock: %s\n", lock->name);
+			snprintf(export_wakeup_wake_lock, 32, "%s", lock->name);
+		}
 		wait_for_wakeup = 0;
 		lock->stat.wakeup_count++;
 	}
@@ -511,6 +566,13 @@ static void wake_lock_internal(
 #endif
 	}
 	list_del(&lock->link);
+
+
+#ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+	print_active_locks(WAKE_LOCK_SUSPEND);
+#endif // #ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+
+
 	if (has_timeout) {
 		if (debug_mask & DEBUG_WAKE_LOCK)
 			pr_info("wake_lock: %s, type %d, timeout %ld.%03lu\n",
@@ -576,6 +638,13 @@ void wake_unlock(struct wake_lock *lock)
 #ifdef CONFIG_WAKELOCK_STAT
 	wake_unlock_stat_locked(lock, 0);
 #endif
+
+
+#ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+	print_active_locks(WAKE_LOCK_SUSPEND);
+#endif // #ifdef CONFIG_CCI_PM_WAKELOCK_LOG
+
+
 	if (debug_mask & DEBUG_WAKE_LOCK)
 		pr_info("wake_unlock: %s\n", lock->name);
 	lock->flags &= ~(WAKE_LOCK_ACTIVE | WAKE_LOCK_AUTO_EXPIRE);
@@ -708,5 +777,6 @@ static void  __exit wakelocks_exit(void)
 #endif
 }
 
+EXPORT_SYMBOL(export_wakeup_wake_lock);
 core_initcall(wakelocks_init);
 module_exit(wakelocks_exit);

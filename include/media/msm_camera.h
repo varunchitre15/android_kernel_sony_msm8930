@@ -1020,9 +1020,13 @@ struct msm_snapshot_pp_status {
 #define CFG_SET_VISION_MODE           55
 #define CFG_SET_VISION_AE             56
 #define CFG_HDR_UPDATE                57
-#define CFG_ACTUAOTOR_REG_INIT        58
-#define CFG_MAX                       59
-
+//  Jim Lai 20121019 
+#define CFG_GET_STATS_DATA            58
+/*S  JackBB 2012/10/24 */
+#define CFG_SET_ATR_CTRL              59
+/*E  JackBB 2012/10/24 */
+#define CFG_ACTUAOTOR_REG_INIT        60
+#define CFG_MAX                       61
 
 #define MOVE_NEAR	0
 #define MOVE_FAR	1
@@ -1225,9 +1229,19 @@ struct sensor_pict_fps {
 struct exp_gain_cfg {
 	uint16_t gain;
 	uint32_t line;
+//S JackBB 2012/12/3 [Q111M]
 	int32_t luma_avg;
 	uint16_t fgain;
+//E JackBB 2012/12/3 [Q111M]
 };
+
+/*S: Jim Lai 20120925 */
+struct wb_gain_cfg {
+	uint16_t r_gain;
+	uint16_t g_gain;
+	uint16_t b_gain;
+};
+/*E: Jim Lai 20120925 */
 
 struct focus_cfg {
 	int32_t steps;
@@ -1323,6 +1337,13 @@ struct sensor_output_info_t {
 	struct msm_sensor_output_info_t *output_info;
 	uint16_t num_info;
 };
+
+/*S:Jim Lai 20121019 */
+#define MAX_IMX134_AE_REGION 16*16*2
+struct stats_data_t {
+	uint8_t imx134_ae_stats[MAX_IMX134_AE_REGION];
+};
+/*E:Jim Lai 20121019 */
 
 struct msm_sensor_exp_gain_info_t {
 	uint16_t coarse_int_time_addr;
@@ -1653,6 +1674,9 @@ struct sensor_cfg_data {
 		uint32_t pict_max_exp_lc;
 		uint16_t p_fps;
 		uint8_t iso_type;
+		/*S: Jim Lai 20121019 */
+		struct stats_data_t stats_data;
+		/*E: Jim Lai 20121019 */
 		struct sensor_init_cfg init_info;
 		struct sensor_pict_fps gfps;
 		struct exp_gain_cfg exp_gain;
@@ -1664,7 +1688,9 @@ struct sensor_cfg_data {
 		struct sensor_output_info_t output_info;
 		struct msm_eeprom_data_t eeprom_data;
 		struct csi_lane_params_t csi_lane_params;
+//S JackBB 2012/12/3 [Q111M]
 		struct sensor_hdr_update_parm_t hdr_update_parm;
+//E JackBB 2012/12/3 [Q111M]
 		/* QRD */
 		uint16_t antibanding;
 		uint8_t contrast;
@@ -1681,6 +1707,7 @@ struct sensor_cfg_data {
 		void *setting;
 		int32_t vision_mode_enable;
 		int32_t vision_ae;
+        int atr_ctrl;
 	} cfg;
 };
 
@@ -1832,6 +1859,19 @@ struct msm_calib_wb {
 	uint16_t gr_over_gb;
 };
 
+struct msm_eeprom_support32 {
+	uint32_t is_supported;
+	uint32_t size;
+	uint32_t index;
+	uint32_t qvalue;
+};
+
+struct msm_calib_wb32 {
+	uint32_t r_over_g;
+	uint32_t b_over_g;
+	uint32_t gr_over_gb;
+};
+
 struct msm_calib_af {
 	uint16_t macro_dac;
 	uint16_t inf_dac;
@@ -1839,10 +1879,24 @@ struct msm_calib_af {
 };
 
 struct msm_calib_lsc {
+#if 1 // new style in bsp1744
 	uint16_t r_gain[221];
 	uint16_t b_gain[221];
 	uint16_t gr_gain[221];
 	uint16_t gb_gain[221];
+#endif
+	uint16_t h_r_gain[63];
+	uint16_t h_b_gain[63];
+	uint16_t h_gr_gain[63];
+	uint16_t h_gb_gain[63];
+	uint16_t l_r_gain[63];
+	uint16_t l_b_gain[63];
+	uint16_t l_gr_gain[63];
+	uint16_t l_gb_gain[63];
+	uint16_t f_r_gain[63];
+	uint16_t f_b_gain[63];
+	uint16_t f_gr_gain[63];
+	uint16_t f_gb_gain[63];
 };
 
 struct pixel_t {
@@ -1864,7 +1918,7 @@ struct msm_calib_raw {
 
 struct msm_camera_eeprom_info_t {
 	struct msm_eeprom_support af;
-	struct msm_eeprom_support wb;
+	struct msm_eeprom_support32 wb;
 	struct msm_eeprom_support lsc;
 	struct msm_eeprom_support dpc;
 	struct msm_eeprom_support raw;

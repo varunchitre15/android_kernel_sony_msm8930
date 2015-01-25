@@ -50,6 +50,19 @@ config LEDS_LM3530
 	  controlled manually or using PWM input or using ambient
 	  light automatically.
 
+config LEDS_LM3561
+        tristate "LED Support for TI LM3561"
+        depends on I2C
+        default y
+        help
+          Say Y here if you want to control camera flashlight
+          using TI LM3561 for CCI platform.
+
+          If unsure, say N.
+
+          To compile this driver as a module, choose M here: the
+          module will be called leds-lm3561.
+
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
 	depends on LEDS_CLASS

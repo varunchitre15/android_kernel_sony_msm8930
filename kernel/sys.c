@@ -54,6 +54,12 @@
 #include <asm/io.h>
 #include <asm/unistd.h>
 
+
+#ifdef CONFIG_CCI_KLOG
+#include <linux/cciklog.h>
+#endif // #ifdef CONFIG_CCI_KLOG
+
+
 #ifndef SET_UNALIGN_CTL
 # define SET_UNALIGN_CTL(a,b)	(-EINVAL)
 #endif
@@ -431,6 +437,12 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 {
 	char buffer[256];
 	int ret = 0;
+
+
+#ifdef CONFIG_CCI_KLOG
+	record_shutdown_time(0x05);
+#endif // #ifdef CONFIG_CCI_KLOG
+
 
 	/* We only trust the superuser with rebooting the system. */
 	if (!capable(CAP_SYS_BOOT))
